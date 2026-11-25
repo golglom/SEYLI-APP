@@ -1,0 +1,142 @@
+import { SupportCenter } from '../types';
+
+export const EMERGENCY_NUMBERS = [
+  { label: 'Allô 1011', number: '1011', description: 'Numéro vert national gratuit 24h/24 • écoute et protection' },
+  { label: 'SOS 3018', number: '3018', description: 'Ligne d’écoute contre le cyberharcèlement' },
+  { label: 'Police Secours', number: '117', description: 'Urgence police' },
+  { label: 'Gendarmerie', number: '172', description: 'Urgence gendarmerie' },
+  { label: 'ANCy Togo', number: '+22897525858', description: 'Autorité nationale de cybersécurité' },
+];
+
+export const SUPPORT_CENTERS: SupportCenter[] = [
+  {
+    id: 'allo_1011',
+    name: 'Allô 1011 — Ligne verte nationale',
+    category: 'Urgence',
+    address: 'Service national gratuit, 24h/24',
+    city: 'Tout le Togo',
+    phone: '1011',
+    description: 'Écoute, orientation et protection immédiate pour les victimes.',
+    latitude: 6.1319,
+    longitude: 1.2228,
+  },
+  {
+    id: 'sos_3018',
+    name: 'SOS 3018',
+    category: 'Écoute',
+    address: 'Ligne d’écoute cyberharcèlement',
+    city: 'Tout le Togo',
+    phone: '3018',
+    description: 'Conseil et accompagnement face au harcèlement en ligne.',
+    latitude: 6.1319,
+    longitude: 1.2228,
+  },
+  {
+    id: 'ancy',
+    name: 'ANCy Togo — Cybercriminalité',
+    category: 'Signalement',
+    address: 'Lomé, Togo',
+    city: 'Lomé',
+    phone: '+22897525858',
+    description: 'Signalement de contenus et d’auteurs de cyberharcèlement.',
+    latitude: 6.1375,
+    longitude: 1.2123,
+  },
+  {
+    id: 'action_sociale_lome',
+    name: 'Direction de l’Action Sociale — Lomé',
+    category: 'Action sociale',
+    address: 'Lomé, Togo',
+    city: 'Lomé',
+    phone: '1011',
+    description: 'Accompagnement social et familial des jeunes en danger.',
+    latitude: 6.1319,
+    longitude: 1.2228,
+  },
+  {
+    id: 'cpe_lome',
+    name: 'Centre de Protection de l’Enfance',
+    category: 'Protection',
+    address: 'Lomé, Togo',
+    city: 'Lomé',
+    phone: '1011',
+    description: 'Protection des mineurs victimes de violences et de harcèlement.',
+    latitude: 6.145,
+    longitude: 1.231,
+  },
+  {
+    id: 'police_lome',
+    name: 'Commissariat central de Lomé',
+    category: 'Police',
+    address: 'Boulevard du 13 Janvier, Lomé',
+    city: 'Lomé',
+    phone: '117',
+    description: 'Dépôt de plainte et protection immédiate.',
+    latitude: 6.1365,
+    longitude: 1.2135,
+  },
+  {
+    id: 'gendarmerie_lome',
+    name: 'Gendarmerie nationale — Lomé',
+    category: 'Gendarmerie',
+    address: 'Lomé, Togo',
+    city: 'Lomé',
+    phone: '172',
+    description: 'Assistance et dépôt de plainte hors zones urbaines.',
+    latitude: 6.19,
+    longitude: 1.22,
+  },
+  {
+    id: 'plan_togo',
+    name: 'Plan International Togo',
+    category: 'ONG',
+    address: 'Lomé, Togo',
+    city: 'Lomé',
+    phone: '+22822212300',
+    description: 'Programmes de protection et d’autonomisation des jeunes filles.',
+    latitude: 6.166,
+    longitude: 1.24,
+  },
+];
+
+export const TOGO_ZONE_PRESETS = [
+  { label: 'Lomé • Deckon', name: 'Secteur Deckon / Grand Marché', latitude: 6.1319, longitude: 1.2228 },
+  { label: 'Lomé • Campus UL', name: 'Campus Université de Lomé', latitude: 6.1758, longitude: 1.2116 },
+  { label: 'Lomé • Tokoin', name: 'Quartier Tokoin', latitude: 6.1536, longitude: 1.2178 },
+  { label: 'Lomé • Nyékonakpoè', name: 'Boulevard 13 Janvier', latitude: 6.1365, longitude: 1.2135 },
+  { label: 'Kara • Centre', name: 'Centre-ville de Kara', latitude: 9.5511, longitude: 1.1861 },
+  { label: 'Sokodé • Centre', name: 'Centre-ville de Sokodé', latitude: 8.9833, longitude: 1.1333 },
+];
+
+export const GUIDE_STEPS = [
+  {
+    id: 'stop_reply',
+    title: 'Ne réponds pas à chaud',
+    body: 'Couper la conversation évite de donner de l’énergie à l’agresseur. Tu pourras toujours répondre plus tard, avec du soutien.',
+  },
+  {
+    id: 'capture',
+    title: 'Capture et archive les preuves',
+    body: 'Fais des captures d’écran du profil, des messages et de la date. Range-les dans le Coffre SEYLI, verrouillé par biométrie.',
+  },
+  {
+    id: 'block',
+    title: 'Bloque et signale sur la plateforme',
+    body: 'Bloque le compte puis utilise le signalement intégré (WhatsApp, TikTok, Instagram, Facebook, Snapchat). Ne supprime pas la conversation.',
+  },
+  {
+    id: 'trusted',
+    title: 'Parle à une personne de confiance',
+    body: 'Un parent, un enseignant, le surveillant général ou une amie. Ajoute aussi tes proches dans le Cercle de confiance pour le SOS.',
+  },
+  {
+    id: 'help',
+    title: 'Contacte une structure d’aide',
+    body: 'Appelle gratuitement Allô 1011 (24h/24), le 3018, ou signale à l’ANCy Togo. En danger immédiat : 117 (police) ou 172 (gendarmerie).',
+  },
+  {
+    id: 'selfcare',
+    title: 'Prends soin de toi',
+    body: 'Le harcèlement n’est jamais ta faute. Note ton humeur dans l’app et parle au Coach SEYLI quand le besoin se fait sentir.',
+  },
+];

@@ -1,0 +1,41 @@
+{
+  "name": "seyli-expo",
+  "version": "1.0.0",
+  "private": true,
+  "main": "index.js",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
+    "fix": "expo install --fix",
+    "build:apk": "eas build -p android --profile production",
+    "build:apk:local": "expo prebuild -p android --clean && cd android && gradlew.bat assembleRelease"
+  },
+  "dependencies": {
+    "@expo-google-fonts/jetbrains-mono": "*",
+    "@expo-google-fonts/outfit": "*",
+    "@expo-google-fonts/plus-jakarta-sans": "*",
+    "@expo/vector-icons": "*",
+    "@react-native-async-storage/async-storage": "2.2.0",
+    "expo": "~58.0.0",
+    "expo-blur": "~58.0.6",
+    "expo-clipboard": "*",
+    "expo-crypto": "*",
+    "expo-font": "~58.0.12",
+    "expo-haptics": "*",
+    "expo-image-picker": "~58.0.10",
+    "expo-linear-gradient": "~58.0.4",
+    "expo-local-authentication": "~58.0.3",
+    "expo-location": "~58.0.22",
+    "expo-sms": "~58.0.3",
+    "expo-status-bar": "*",
+    "react": "19.3.0",
+    "react-native": "0.88.1",
+    "react-native-safe-area-context": "*"
+  },
+  "devDependencies": {
+    "@types/react": ">=19.0.0 <20.0.0",
+    "typescript": "~6.0.3"
+  }
+}

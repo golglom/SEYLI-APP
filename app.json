@@ -1,0 +1,46 @@
+{
+  "expo": {
+    "name": "SEYLI",
+    "slug": "seyli",
+    "version": "1.0.0",
+    "icon": "./assets/icon.png",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.seyli.app",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "SEYLI utilise ta position pour tes zones de sécurité et tes alertes SOS.",
+        "NSPhotoLibraryUsageDescription": "SEYLI a besoin d'accéder à tes captures pour archiver des preuves de cyberharcèlement.",
+        "NSCameraUsageDescription": "SEYLI peut photographier un message pour l'archiver comme preuve.",
+        "NSFaceIDUsageDescription": "SEYLI utilise Face ID pour protéger l'accès à ton coffre de preuves."
+      }
+    },
+    "android": {
+      "package": "com.seyli.app",
+      "versionCode": 1,
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "SEND_SMS",
+        "VIBRATE",
+        "USE_BIOMETRIC"
+      ]
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "SEYLI a besoin d'accéder à tes captures pour archiver des preuves.",
+          "cameraPermission": "SEYLI peut photographier un message pour l'archiver comme preuve."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "SEYLI utilise ta position pour tes zones de sécurité et tes alertes SOS."
+        }
+      ]
+    ]
+  }
+}

@@ -6,6 +6,7 @@ web-build/
 .env
 .env.local
 *.jks
+keys/
 *.p8
 *.p12
 *.key

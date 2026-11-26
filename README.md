@@ -85,6 +85,66 @@ seyli-expo/
 └── .env.example
 ```
 
+## Signature de production (APK)
+
+Le keystore de release ne vit pas dans `android/` : ce dossier est régénéré à chaque
+`npx expo prebuild`, et perdre la clé interdit toute mise à jour de l'application.
+
+| Élément | Emplacement |
+| --- | --- |
+| Keystore | `keys/seyli-release.jks` (PKCS12, alias `seyli`, RSA 2048, validité 10 000 jours) |
+| Identifiants | `keys/keystore.properties` (`storeFile`, `storePassword`, `keyAlias`, `keyPassword`) |
+| Sauvegarde | `../signing-backup/` (racine du workspace, hors du dépôt) |
+| Empreintes | `../signing-backup/EMPREINTES.txt` |
+
+`keys/` est ignoré par git (`*.jks` et `keys/` dans `.gitignore`) : ces deux fichiers ne doivent
+jamais être commités, mais ils doivent être sauvegardés ailleurs (voir plus bas).
+
+### Comment la release est signée
+
+`plugins/withReleaseSigning.js`, déclaré dans `app.json`, réapplique la configuration à chaque
+prebuild — une édition manuelle de `android/app/build.gradle` serait perdue :
+
+- il injecte un `signingConfigs.release` qui lit `../keys/keystore.properties` ;
+- il remplace la signature debug de `buildTypes.release` par cette configuration ;
+- si le keystore manque, toute tâche `*release*` échoue avec une `GradleException` explicite,
+  au lieu de produire un APK signé avec la clé debug ;
+- si le template Gradle de React Native change de structure, le plugin lève une erreur au
+  prebuild et arrête la chaîne, au lieu de patcher silencieusement.
+
+```bash
+cd android
+JAVA_HOME=../.toolchain/jdk-17.0.21.1+2 \
+ANDROID_HOME="$LOCALAPPDATA/Android/Sdk" \
+./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a
+```
+
+L'APK sort dans `android/app/build/outputs/apk/release/app-release.apk`.
+
+### Restaurer le keystore depuis `signing-backup`
+
+Sur un nouveau poste, ou après un nettoyage :
+
+```bash
+mkdir -p keys
+cp ../signing-backup/seyli-release.jks keys/
+cp ../signing-backup/keystore.properties keys/
+```
+
+Le champ `storeFile` de `keystore.properties` contient un chemin absolu propre à la machine qui a
+généré la clé : remplacez-le par le chemin du fichier restauré avant de builder.
+
+Vérification de l'identité de la clé :
+
+```bash
+keytool -list -v -keystore keys/seyli-release.jks -alias seyli
+```
+
+Empreinte SHA-256 attendue :
+`39:9C:74:C1:1D:8D:03:54:8F:4E:A9:D5:AD:13:6C:AD:9D:35:57:DD:FA:F0:46:81:D5:C2:16:0E:E6:28:69:7C`.
+Si elle diffère, ce n'est pas la bonne clé : les mises à jour installées par-dessus l'ancienne
+version seront refusées par Android.
+
 ## Vérification
 
 Le code n'a pas pu être compilé dans l'environnement de génération (terminal indisponible).

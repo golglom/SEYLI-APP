@@ -175,8 +175,9 @@ un APK dont le `versionCode` est inférieur ou égal à celui déjà présent su
 
 ### 2. Régénérer le projet natif et construire l'APK signé
 
+Depuis la racine du dépôt de l'app (le dossier qui contient `app.json`) :
+
 ```bash
-cd seyli-expo
 npx expo prebuild --platform android --clean
 ```
 
@@ -240,7 +241,8 @@ anonyme : la fiche afficherait un lien mort.
 
 ### 5. Mettre à jour la fiche SEYLI du site
 
-Dans `../site/src/pages/SeyliAppPage.tsx` (worktree `site` du même dépôt), quatre blocs à changer :
+Dans `src/pages/SeyliAppPage.tsx` du dépôt du site (`UNICODES_AFRICA`, dossier `site`), quatre
+blocs à changer :
 
 | Constante | Valeur |
 | --- | --- |
@@ -253,8 +255,9 @@ Dans `../site/src/pages/SeyliAppPage.tsx` (worktree `site` du même dépôt), qu
 
 ### 6. Commiter et pousser
 
+Dans le dossier `site` de ton clone de `UNICODES_AFRICA` :
+
 ```bash
-cd ../site
 git commit -am "Publie l'APK 1.0.2 et son empreinte sur la fiche SEYLI"
 git push unicodes HEAD:main
 ```

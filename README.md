@@ -116,8 +116,14 @@ prebuild — une édition manuelle de `android/app/build.gradle` serait perdue :
 cd android
 JAVA_HOME=../.toolchain/jdk-17.0.21.1+2 \
 ANDROID_HOME="$LOCALAPPDATA/Android/Sdk" \
-./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a
+./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a \
+  -Pexpo.android.cmakeObjectPathMax=0
 ```
+
+`-Pexpo.android.cmakeObjectPathMax=0` est nécessaire sous Windows : Expo force sinon
+`CMAKE_OBJECT_PATH_MAX=1024`, CMake cesse d'abréger les noms d'objets générés et le Ninja 1.10 du
+SDK échoue sur les chemins de plus de 260 caractères. La valeur 0 rend la limite CMake par défaut,
+qui hache les noms trop longs.
 
 L'APK sort dans `android/app/build/outputs/apk/release/app-release.apk`.
 

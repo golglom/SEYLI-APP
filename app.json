@@ -2,7 +2,7 @@
   "expo": {
     "name": "SEYLI",
     "slug": "seyli",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "icon": "./assets/icon.png",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
@@ -18,7 +18,7 @@
     },
     "android": {
       "package": "com.seyli.app",
-      "versionCode": 2,
+      "versionCode": 3,
       "permissions": [
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION",
@@ -40,6 +40,18 @@
         "expo-location",
         {
           "locationWhenInUsePermission": "SEYLI utilise ta position pour tes zones de sécurité et tes alertes SOS."
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/icon.png",
+          "imageWidth": 180,
+          "resizeMode": "contain",
+          "backgroundColor": "#0F1830",
+          "dark": {
+            "backgroundColor": "#0F1830"
+          }
         }
       ]
     ]

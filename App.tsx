@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as SplashScreen from 'expo-splash-screen';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
   JetBrainsMono_500Medium,
@@ -408,6 +409,11 @@ function Root() {
   );
 }
 
+// The native launch screen is only dismissed by this call: without it, an
+// early render failure leaves the splash (and its Expo placeholder logo) on
+// screen forever, with no way for the user to tell what went wrong.
+void SplashScreen.preventAutoHideAsync().catch(() => {});
+
 export default function App() {
   const [fontsLoaded, fontError] = useFonts({
     Outfit_600SemiBold,
@@ -419,7 +425,21 @@ export default function App() {
     JetBrainsMono_500Medium,
   });
 
-  if (!fontsLoaded && !fontError) {
+  // A font asset must never hold the app on the launch screen: after a few
+  // seconds the UI renders with whatever fonts are available.
+  const [fontTimeout, setFontTimeout] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setFontTimeout(true), 4000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const ready = fontsLoaded || !!fontError || fontTimeout;
+
+  useEffect(() => {
+    if (ready) void SplashScreen.hideAsync().catch(() => {});
+  }, [ready]);
+
+  if (!ready) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FAF6F8' }}>
         <ActivityIndicator color="#D22B6D" />

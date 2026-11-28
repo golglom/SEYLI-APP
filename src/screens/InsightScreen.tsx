@@ -6,7 +6,7 @@ import { availableMonths, buildMonthlyReport, buildShareableReport } from '../li
 import { shareText } from '../lib/emergency';
 import { useApp } from '../store';
 import { radius } from '../theme';
-import { AppText, Badge, Btn, Card, Chip, Screen, SectionTitle } from '../ui/kit';
+import { AppText, Badge, Btn, BentoScreen, BentoPanel, BentoGrid, BentoRow, BentoChip } from '../ui/bento';
 import { MOODS, PLATFORMS } from '../types';
 
 const platformLabel = (key: string) => PLATFORMS.find((p) => p.key === key)?.label ?? key;
@@ -44,128 +44,90 @@ export default function InsightScreen() {
           : palette.severity.LOW;
 
   return (
-    <Screen>
-      <Card style={{ gap: 12 }}>
-        <SectionTitle
-          title="Rapport de sécurité"
-          subtitle="Preuves, SMS à risque et humeur, agrégés par mois."
-        />
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-          {months.map((month) => (
-            <Chip
-              key={month}
-              label={new Date(`${month}-01T12:00:00`).toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' })}
-              active={selected === month}
-              onPress={() => setSelected(month)}
-            />
-          ))}
-        </View>
-        <LinearGradient
-          colors={[vigilanceColor + '24', vigilanceColor + '0A']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: 14,
-            borderRadius: radius.md,
-            borderWidth: 1,
-            borderColor: vigilanceColor + '3D',
-          }}
-        >
-          <View style={{ gap: 3 }}>
-            <AppText variant="micro" color={palette.muted}>
-              NIVEAU DE VIGILANCE
-            </AppText>
-            <AppText variant="title">{report.vigilance}</AppText>
-          </View>
-          <View
-            style={{
-              width: 44,
-              height: 44,
-              borderRadius: Math.round(44 * 0.34),
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: vigilanceColor + '1F',
-            }}
-          >
-            <Ionicons
-              name={report.total === 0 ? 'shield-checkmark' : 'pulse'}
-              size={21}
-              color={vigilanceColor}
-            />
-          </View>
-        </LinearGradient>
-      </Card>
+    <BentoScreen>
+      <BentoPanel tone="glass" style={{ gap: 12 }}>
+        <AppText variant="h3">Rapport de sécurité</AppText>
+        <AppText variant="caption" color={palette.muted}>
+          Preuves, SMS à risque et humeur, agrégés par mois.
+        </AppText>
+      </BentoPanel>
 
-      <View style={{ flexDirection: 'row', gap: 12 }}>
-        <Card style={{ flex: 1, gap: 4 }}>
+      <BentoRow style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
+        {months.map((month) => (
+          <BentoChip key={month} label={new Date(`${month}-01T12:00:00`).toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' })} active={selected === month} onPress={() => setSelected(month)} />
+        ))}
+      </BentoRow>
+
+      <BentoPanel style={{ borderColor: vigilanceColor + '66' }} contentStyle={{ gap: 14, padding: 14, borderRadius: radius.md }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+          <AppText variant="micro" color={palette.muted}>NIVEAU DE VIGILANCE</AppText>
+          <AppText variant="title">{report.vigilance}</AppText>
+        </View>
+
+        <View style={{ width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: vigilanceColor + '1F' }}>
+          <Ionicons
+            name={report.total === 0 ? 'shield-checkmark' : 'pulse'}
+            size={21}
+            color={vigilanceColor}
+          />
+        </View>
+      </BentoPanel>
+
+      <BentoRow style={{ gap: 12, marginTop: 12 }}>
+        <BentoPanel style={{ flex: 1, gap: 4 }}>
           <AppText variant="h1">{report.total}</AppText>
-          <AppText variant="caption" color={palette.muted}>
-            Incidents ce mois
-          </AppText>
+          <AppText variant="caption" color={palette.muted}>Incidents ce mois</AppText>
           <AppText variant="micro" color={report.trend === 'INCREASING' ? palette.error : palette.muted}>
-            {report.trend === 'NONE'
-              ? 'Aucune donnée'
-              : report.trend === 'STABLE'
-                ? 'Stable vs mois précédent'
-                : report.trend === 'INCREASING'
-                  ? 'En hausse'
-                  : 'En baisse'}
+            {report.trend === 'NONE' ? 'Aucune donnée' : report.trend === 'STABLE' ? 'Stable vs mois précédent' : 'En hausse'}
             {report.deltaPercent != null && report.trend !== 'NONE' ? ` • ${report.deltaPercent > 0 ? '+' : ''}${report.deltaPercent}%` : ''}
           </AppText>
-        </Card>
-        <Card style={{ flex: 1, gap: 4 }}>
-          <AppText variant="h1" color={palette.error}>
-            {report.highRisk}
-          </AppText>
-          <AppText variant="caption" color={palette.muted}>
-            Haut risque
-          </AppText>
-          <AppText variant="micro" color={palette.muted}>
-            Urgence moy. {report.averageUrgency}/100
-          </AppText>
-        </Card>
+        </BentoPanel>
+
+        <BentoPanel style={{ flex: 1, gap: 4 }}>
+          <AppText variant="h1" color={palette.error}>{report.highRisk}</AppText>
+          <AppText variant="caption" color={palette.muted}>Haut risque</AppText>
+          <AppText variant="micro" color={palette.muted}>Urgence moy. {report.averageUrgency}/100</AppText>
+        </BentoPanel>
+      </BentoRow>
+
+      <BentoPanel style={{ gap: 10 }}>
+        <AppText variant="h3">Six derniers mois</AppText>
+        <AppText variant="caption" color={palette.muted}>Nombre d’incidents par mois.</AppText>
+      </BentoPanel>
+
+      <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8, height: 110 }}>
+        {history.map((item) => (
+          <View key={item.month} style={{ flex: 1, alignItems: 'center', gap: 6 }}>
+            <AppText variant="micro" color={palette.muted}>{item.total}</AppText>
+            <View
+              style={{
+                width: '72%',
+                height: Math.max(6, (item.total / maxTotal) * 72),
+                borderRadius: 8,
+                overflow: 'hidden',
+                backgroundColor: item.month === selected ? 'transparent' : palette.primaryContainer,
+              }}
+            >
+              {item.month === selected ? (
+                <LinearGradient
+                  colors={[palette.primary, palette.primaryDeep]}
+                  start={{ x: 0, y: 1 }}
+                  end={{ x: 1, y: 0 }}
+                  style={{ flex: 1 }}
+                />
+              ) : null}
+            </View>
+            <AppText variant="micro" color={palette.muted}>
+              {new Date(`${item.month}-01T12:00:00`).toLocaleDateString('fr-FR', { month: 'short' })}
+            </AppText>
+          </View>
+        ))}
       </View>
 
-      <Card style={{ gap: 10 }}>
-        <SectionTitle title="Six derniers mois" subtitle="Nombre d’incidents par mois." />
-        <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8, height: 110 }}>
-          {history.map((item) => (
-            <View key={item.month} style={{ flex: 1, alignItems: 'center', gap: 6 }}>
-              <AppText variant="micro" color={palette.muted}>
-                {item.total}
-              </AppText>
-              <View
-                style={{
-                  width: '72%',
-                  height: Math.max(6, (item.total / maxTotal) * 72),
-                  borderRadius: 8,
-                  overflow: 'hidden',
-                  backgroundColor: item.month === selected ? 'transparent' : palette.primaryContainer,
-                }}
-              >
-                {item.month === selected ? (
-                  <LinearGradient
-                    colors={[palette.primary, palette.primaryDeep]}
-                    start={{ x: 0, y: 1 }}
-                    end={{ x: 1, y: 0 }}
-                    style={{ flex: 1 }}
-                  />
-                ) : null}
-              </View>
-              <AppText variant="micro" color={palette.muted}>
-                {new Date(`${item.month}-01T12:00:00`).toLocaleDateString('fr-FR', { month: 'short' })}
-              </AppText>
-            </View>
-          ))}
-        </View>
-      </Card>
-
       {report.platforms.length ? (
-        <Card style={{ gap: 10 }}>
-          <SectionTitle title="Plateformes" subtitle="Où les incidents se concentrent." />
+        <BentoPanel style={{ gap: 10 }}>
+          <AppText variant="h3">Plateformes</AppText>
+          <AppText variant="caption" color={palette.muted}>Où les incidents se concentrent.</AppText>
           {report.platforms.map((item) => (
             <View key={item.platform} style={{ gap: 5 }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
@@ -188,28 +150,29 @@ export default function InsightScreen() {
                   colors={[palette.primary, palette.primaryDeep]}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
-                  style={{ width: `${Math.max(3, item.percent)}%` as `${number}%`, height: '100%' }}
+                  style={{ width: Math.max(3, item.percent) + '%' as `${number}%`, height: '100%' }}
                 />
               </View>
             </View>
           ))}
-        </Card>
+        </BentoPanel>
       ) : null}
 
       {report.categories.length ? (
-        <Card style={{ gap: 8 }}>
-          <SectionTitle title="Catégories de menace" />
+        <BentoPanel style={{ gap: 8 }}>
+          <AppText variant="h3">Catégories de menace</AppText>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
             {report.categories.map((item) => (
               <Badge key={item.label} label={`${item.label} · ${item.count}`} color={palette.secondary} />
             ))}
           </View>
-        </Card>
+        </BentoPanel>
       ) : null}
 
       {report.aggressors.length ? (
-        <Card style={{ gap: 10 }}>
-          <SectionTitle title="Auteurs récurrents" subtitle="Repère les comptes qui reviennent." />
+        <BentoPanel style={{ gap: 10 }}>
+          <AppText variant="h3">Auteurs récurrents</AppText>
+          <AppText variant="caption" color={palette.muted}>Repère les comptes qui reviennent.</AppText>
           {report.aggressors.map((aggressor) => (
             <View
               key={aggressor.key}
@@ -223,62 +186,52 @@ export default function InsightScreen() {
               }}
             >
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 8 }}>
-                <AppText variant="label" numberOfLines={1} style={{ flex: 1 }}>
-                  {aggressor.handle}
-                </AppText>
-                <AppText variant="micro" color={palette.error}>
-                  {aggressor.persistenceScore}/100
-                </AppText>
+                <AppText variant="label" numberOfLines={1} style={{ flex: 1 }}>{aggressor.handle}</AppText>
+                <AppText variant="micro" color={palette.error}>{aggressor.persistenceScore}/100</AppText>
               </View>
               <AppText variant="caption" color={palette.muted}>
                 {aggressor.badge} • {aggressor.months} mois • {aggressor.platforms.map(platformLabel).join(', ')}
               </AppText>
             </View>
           ))}
-        </Card>
+        </BentoPanel>
       ) : null}
 
       {report.keywords.length ? (
-        <Card style={{ gap: 8 }}>
-          <SectionTitle title="Mots-clés détectés" />
+        <BentoPanel style={{ gap: 8 }}>
+          <AppText variant="h3">Mots-clés détectés</AppText>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
             {report.keywords.map((keyword) => (
               <Badge key={keyword} label={keyword} color={palette.muted} />
             ))}
           </View>
-        </Card>
+        </BentoPanel>
       ) : null}
 
-      <Card style={{ gap: 10 }}>
-        <SectionTitle
-          title="Recommandations"
-          subtitle={`${report.moodCount} check-in(s) d’humeur ce mois${
-            report.dominantMood ? ` • dominant : ${MOODS.find((m) => m.key === report.dominantMood)?.label}` : ''
-          }`}
-        />
-        {report.recommendations.map((recommendation) => (
-          <View key={recommendation} style={{ flexDirection: 'row', gap: 8 }}>
+      <BentoPanel style={{ gap: 10 }}>
+        <AppText variant="h3">Recommandations</AppText>
+        <AppText variant="caption" color={palette.muted}>
+          {report.moodCount} check-in(s) d’humeur ce mois${report.dominantMood ? ` • dominant : ${MOODS.find((m) => m.key === report.dominantMood)?.label}` : ''}
+        </AppText>
+        {report.recommendations.map((recommendation, index) => (
+          <View
+            key={recommendation}
+            style={{ flexDirection: 'row', gap: 8, padding: 12, borderRadius: radius.md, backgroundColor: palette.surfaceAlt }}
+          >
             <Ionicons name="arrow-forward-circle-outline" size={18} color={palette.primary} />
-            <AppText variant="bodySm" style={{ flex: 1 }}>
-              {recommendation}
-            </AppText>
+            <AppText variant="bodySm" style={{ flex: 1 }}>{recommendation}</AppText>
           </View>
         ))}
-      </Card>
+      </BentoPanel>
 
-      <Btn
-        label="Exporter le rapport"
-        icon="share-outline"
-        onPress={() => shareText(`Rapport SEYLI — ${report.monthLabel}`, buildShareableReport(report))}
-      />
+      <Btn label="Exporter le rapport" icon="share-outline" onPress={() => shareText(`Rapport SEYLI — ${report.monthLabel}`, buildShareableReport(report))} />
 
-      <Card tone="alt" style={{ gap: 6 }}>
+      <BentoPanel tone="alt" style={{ gap: 6 }}>
         <AppText variant="label">Confidentialité</AppText>
         <AppText variant="caption" color={palette.muted}>
-          Ce rapport est calculé sur ton téléphone, à partir de tes preuves et messages. Rien n’est envoyé à un
-          serveur, sauf si tu utilises l’analyse Gemini ou le partage.
+          Ce rapport est calculé sur ton téléphone, à partir de tes preuves et messages. Rien n’est envoyé à un serveur, sauf si tu connectes ta clé Gemini ou utilises le partage.
         </AppText>
-      </Card>
-    </Screen>
+      </BentoPanel>
+    </BentoScreen>
   );
 }

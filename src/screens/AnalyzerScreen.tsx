@@ -2,38 +2,58 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import React, { useState } from 'react';
 import { Alert, Image, Pressable, View } from 'react-native';
-import { analyzeIncident, geminiEnabled, transcribeImage } from '../lib/gemini';
+import { discardCapture, persistCapture, PickedImage } from '../lib/captures';
+import { analyzeIncident, transcribeImage } from '../lib/gemini';
 import { copyToClipboard, haptic } from '../lib/native';
 import { offlineAnalysis } from '../lib/smsFilter';
 import { useNav } from '../navigation';
 import { useApp } from '../store';
 import { radius } from '../theme';
-import { AppText, Badge, Btn, Card, Chip, Field, Screen, SectionTitle, Sheet } from '../ui/kit';
+import { AppText, Badge, Btn, Chip, Field, Note, SectionTitle, Sheet } from '../ui/kit';
+import { BentoPanel, BentoScreen } from '../ui/bento';
 import { AiAnalysis, PLATFORMS, SEVERITIES, SeverityLevel, SocialPlatform } from '../types';
-
-interface PickedImage {
-  uri: string;
-  base64: string;
-  mimeType: string;
-}
 
 const severityColor = (severity: SeverityLevel, palette: ReturnType<typeof useApp>['palette']) =>
   palette.severity[severity];
 
 export default function AnalyzerScreen() {
-  const { palette, addEvidence } = useApp();
+  const { palette, state, addEvidence } = useApp();
   const nav = useNav();
+  const aiReady = state.geminiKey.trim().length > 0;
   const [text, setText] = useState('');
   const [platform, setPlatform] = useState<SocialPlatform>('WHATSAPP');
   const [image, setImage] = useState<PickedImage | null>(null);
   const [analysis, setAnalysis] = useState<AiAnalysis | null>(null);
   const [loading, setLoading] = useState(false);
   const [extracting, setExtracting] = useState(false);
+  const [fallbackNotice, setFallbackNotice] = useState(false);
   const [archiveOpen, setArchiveOpen] = useState(false);
   const [title, setTitle] = useState('');
   const [handle, setHandle] = useState('');
 
   const platformLabel = PLATFORMS.find((p) => p.key === platform)?.label ?? 'Autre';
+
+  /**
+   * Le sélecteur Android rend une URI `content://media/picker/...` que React
+   * Native n'arrive plus à lire ensuite : la capture restait invisible et la
+   * preuve pointait vers un fichier inaccessible. On recopie donc les octets
+   * reçus dans le stockage de l'app avant d'afficher quoi que ce soit.
+   */
+  const attach = async (asset: ImagePicker.ImagePickerAsset) => {
+    const mimeType = asset.mimeType ?? 'image/jpeg';
+    if (asset.base64) {
+      try {
+        const uri = await persistCapture(asset.base64, mimeType);
+        setImage({ uri, base64: asset.base64, mimeType });
+        setAnalysis(null);
+        return;
+      } catch {
+        // Stockage indisponible : on garde l'URI d'origine, l'analyse reste possible.
+      }
+    }
+    setImage({ uri: asset.uri, base64: asset.base64 ?? '', mimeType });
+    setAnalysis(null);
+  };
 
   const pickImage = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -47,13 +67,7 @@ export default function AnalyzerScreen() {
       quality: 0.7,
     });
     if (result.canceled || !result.assets[0]) return;
-    const asset = result.assets[0];
-    setImage({
-      uri: asset.uri,
-      base64: asset.base64 ?? '',
-      mimeType: asset.mimeType ?? 'image/jpeg',
-    });
-    setAnalysis(null);
+    await attach(result.assets[0]);
   };
 
   const takePhoto = async () => {
@@ -64,9 +78,7 @@ export default function AnalyzerScreen() {
     }
     const result = await ImagePicker.launchCameraAsync({ base64: true, quality: 0.7 });
     if (result.canceled || !result.assets[0]) return;
-    const asset = result.assets[0];
-    setImage({ uri: asset.uri, base64: asset.base64 ?? '', mimeType: asset.mimeType ?? 'image/jpeg' });
-    setAnalysis(null);
+    await attach(result.assets[0]);
   };
 
   const runAnalysis = async () => {
@@ -75,14 +87,22 @@ export default function AnalyzerScreen() {
       return;
     }
     setLoading(true);
+    setFallbackNotice(false);
     try {
       let result: AiAnalysis;
-      if (geminiEnabled) {
-        result = await analyzeIncident(
-          text,
-          platformLabel,
-          image && image.base64 ? { base64: image.base64, mimeType: image.mimeType } : undefined
-        );
+      if (aiReady) {
+        try {
+          result = await analyzeIncident(
+            text,
+            platformLabel,
+            image && image.base64 ? { base64: image.base64, mimeType: image.mimeType } : undefined
+          );
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'Analyse en ligne indisponible.';
+          console.warn('[SEYLI analyse] repli sur l’analyse locale :', message);
+          result = offlineAnalysis(text || 'Capture sans texte') as AiAnalysis;
+          setFallbackNotice(true);
+        }
       } else {
         result = offlineAnalysis(text || 'Capture sans texte') as AiAnalysis;
       }
@@ -91,14 +111,18 @@ export default function AnalyzerScreen() {
       void haptic('success');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Analyse impossible.';
-      Alert.alert('Analyse IA indisponible', `${message}\n\nVérifie EXPO_PUBLIC_GEMINI_API_KEY dans .env.`);
+      console.warn('[SEYLI analyse] échec de l’analyse :', message);
+      Alert.alert(
+        'Analyse impossible',
+        'Réessaie dans un instant. Ton message reste sur cet appareil.'
+      );
     } finally {
       setLoading(false);
     }
   };
 
   const extractText = async () => {
-    if (!image || !image.base64 || !geminiEnabled) return;
+    if (!image || !image.base64 || !aiReady) return;
     setExtracting(true);
     try {
       const extracted = await transcribeImage({ base64: image.base64, mimeType: image.mimeType });
@@ -146,17 +170,17 @@ export default function AnalyzerScreen() {
 
   return (
     <>
-      <Screen>
-        <Card style={{ gap: 10 }}>
+      <BentoScreen>
+        <BentoPanel contentStyle={{ gap: 10 }}>
           <SectionTitle
             title="Analyser une situation"
             subtitle={
-              geminiEnabled
-                ? 'IA Gemini connectée • analyse privée du message'
-                : 'Mode hors-ligne • moteur local SEYLI'
+              aiReady
+                ? 'Analyse Gemini avec ta clé • seul ce message est envoyé'
+                : 'Analyse locale • rien ne quitte ton téléphone'
             }
           />
-          {!geminiEnabled ? (
+          {!aiReady ? (
             <View
               style={{
                 flexDirection: 'row',
@@ -168,10 +192,20 @@ export default function AnalyzerScreen() {
             >
               <Ionicons name="information-circle-outline" size={18} color={palette.tertiary} />
               <AppText variant="caption" color={palette.muted} style={{ flex: 1 }}>
-                Ajoute une clé Gemini dans `seyli-expo/.env` pour activer l’analyse d’image et le coach IA.
-                En attendant, le moteur local détecte les signaux connus.
+                L’analyse se fait sur ton téléphone, sans connexion : SEYLI repère les menaces,
+                le chantage et les insultes connus, puis te propose quoi faire. Connecte ta clé
+                Gemini personnelle pour une analyse plus fine.
               </AppText>
             </View>
+          ) : null}
+          {!aiReady ? (
+            <Btn
+              label="Connecter ma clé API"
+              icon="key-outline"
+              variant="secondary"
+              compact
+              onPress={() => nav.navigate('apikey')}
+            />
           ) : null}
           <AppText variant="micro" color={palette.muted}>
             PLATEFORME
@@ -203,11 +237,19 @@ export default function AnalyzerScreen() {
                   variant="secondary"
                   compact
                   loading={extracting}
-                  disabled={!geminiEnabled}
+                  disabled={!aiReady}
                   onPress={extractText}
                   style={{ flex: 1 }}
                 />
-                <Btn label="Retirer" variant="ghost" compact onPress={() => setImage(null)} />
+                <Btn
+                  label="Retirer"
+                  variant="ghost"
+                  compact
+                  onPress={() => {
+                    void discardCapture(image.uri);
+                    setImage(null);
+                  }}
+                />
               </View>
             </View>
           ) : null}
@@ -221,11 +263,18 @@ export default function AnalyzerScreen() {
             onPress={runAnalysis}
             loading={loading}
           />
-        </Card>
+        </BentoPanel>
 
         {analysis ? (
           <>
-            <Card style={{ gap: 12, borderColor: color + '66' }}>
+            {fallbackNotice ? (
+              <Note icon="cloud-offline-outline" tone="error">
+                Ta clé API n’a pas pu être utilisée : le résultat ci-dessous vient de l’analyse
+                locale. Vérifie ta clé dans Réglages → Clé API IA.
+              </Note>
+            ) : null}
+
+            <BentoPanel style={{ borderColor: color + '66' }} contentStyle={{ gap: 12 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                 <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
                   <View
@@ -289,10 +338,10 @@ export default function AnalyzerScreen() {
                   ))}
                 </View>
               ) : null}
-            </Card>
+            </BentoPanel>
 
             {analysis.suggestedReplies.length ? (
-              <Card style={{ gap: 10 }}>
+              <BentoPanel contentStyle={{ gap: 10 }}>
                 <SectionTitle title="Réponses proposées" subtitle="Copie, adapte ou envoie quand tu seras prête." />
                 {analysis.suggestedReplies.map((reply, index) => (
                   <View
@@ -323,7 +372,7 @@ export default function AnalyzerScreen() {
                     </Pressable>
                   </View>
                 ))}
-              </Card>
+              </BentoPanel>
             ) : null}
 
             <View style={{ flexDirection: 'row', gap: 10 }}>
@@ -337,6 +386,7 @@ export default function AnalyzerScreen() {
                 label="Effacer"
                 variant="ghost"
                 onPress={() => {
+                  void discardCapture(image?.uri);
                   setAnalysis(null);
                   setText('');
                   setImage(null);
@@ -345,7 +395,7 @@ export default function AnalyzerScreen() {
             </View>
           </>
         ) : (
-          <Card tone="alt" style={{ gap: 8 }}>
+          <BentoPanel tone="soft" contentStyle={{ gap: 8 }}>
             <AppText variant="label">Comment ça marche</AppText>
             {[
               'Colle le message ou choisis une capture d’écran.',
@@ -359,14 +409,14 @@ export default function AnalyzerScreen() {
                 </AppText>
               </View>
             ))}
-          </Card>
+          </BentoPanel>
         )}
 
-        <Card style={{ gap: 8 }}>
+        <BentoPanel contentStyle={{ gap: 8 }}>
           <SectionTitle title="Filtre SMS" subtitle="Analyse aussi tes messages entrants." />
           <Btn label="Ouvrir le filtre SMS" icon="chatbox-ellipses-outline" variant="secondary" onPress={() => nav.navigate('sms')} />
-        </Card>
-      </Screen>
+        </BentoPanel>
+      </BentoScreen>
 
       <Sheet visible={archiveOpen} onClose={() => setArchiveOpen(false)} title="Archiver la preuve">
         <Field

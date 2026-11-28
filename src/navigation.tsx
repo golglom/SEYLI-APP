@@ -8,6 +8,7 @@ export type Route =
   | 'insight'
   | 'settings'
   | 'privacy'
+  | 'apikey'
   | 'guide';
 
 export interface Nav {
@@ -37,5 +38,6 @@ export const ROUTE_TITLES: Record<Route, string> = {
   insight: 'Rapport mensuel',
   settings: 'Réglages',
   privacy: 'Confidentialité',
+  apikey: 'Clé API IA',
   guide: 'Guide d’action',
 };

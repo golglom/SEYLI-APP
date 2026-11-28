@@ -1,10 +1,62 @@
 import { AiAnalysis, CoachMode, SeverityLevel } from '../types';
 
-const KEY = (process.env.EXPO_PUBLIC_GEMINI_API_KEY ?? '').trim();
 const MODEL = (process.env.EXPO_PUBLIC_GEMINI_MODEL ?? 'gemini-2.5-flash').trim();
 const ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
+const MODELS_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models';
 
-export const geminiEnabled = KEY.length > 0;
+/**
+ * Chaque personne connecte sa propre clé Gemini depuis l'application.
+ * La clé reste dans le stockage local de ce téléphone : aucune clé n'est
+ * embarquée dans l'APK et SEYLI ne voit jamais passer les requêtes.
+ */
+let apiKey = '';
+
+export function setGeminiApiKey(key: string | null | undefined): void {
+  apiKey = (key ?? '').trim();
+}
+
+function friendlyHttpError(status: number): string {
+  if (status === 400 || status === 401 || status === 403) {
+    return 'Ta clé API est refusée par Google. Ouvre Réglages → Clé API IA pour la vérifier ou la remplacer.';
+  }
+  if (status === 429) {
+    return 'Le quota de ta clé API est atteint. Réessaie plus tard ou utilise une autre clé.';
+  }
+  if (status >= 500) {
+    return 'Le service Gemini est momentanément indisponible. Réessaie dans un instant.';
+  }
+  return `Gemini a répondu avec l’erreur ${status}. Vérifie ta clé dans Réglages → Clé API IA.`;
+}
+
+/**
+ * Vérifie une clé sans consommer de jeton : lecture de la liste des modèles.
+ * Ne modifie pas la clé active, ce qui permet de tester avant d'enregistrer.
+ */
+export async function verifyGeminiKey(
+  key: string
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  const clean = key.trim();
+  if (clean.length < 20) {
+    return { ok: false, message: 'Cette clé semble incomplète. Copie-la en entier depuis Google AI Studio.' };
+  }
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 20_000);
+  try {
+    const response = await fetch(`${MODELS_ENDPOINT}?key=${encodeURIComponent(clean)}`, {
+      method: 'GET',
+      signal: controller.signal,
+    });
+    if (response.ok) return { ok: true };
+    return { ok: false, message: friendlyHttpError(response.status) };
+  } catch {
+    return {
+      ok: false,
+      message: 'Pas de connexion à Google. Vérifie ton réseau puis réessaie.',
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
 
 interface Part {
   text?: string;
@@ -18,11 +70,13 @@ interface CallOptions {
 }
 
 async function callGemini(parts: Part[], options: CallOptions = {}): Promise<string> {
-  if (!geminiEnabled) throw new Error('Aucune clé Gemini configurée.');
+  if (!apiKey) {
+    throw new Error('Aucune clé API connectée. Ouvre Réglages → Clé API IA pour ajouter la tienne.');
+  }
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 60_000);
   try {
-    const response = await fetch(`${ENDPOINT}?key=${encodeURIComponent(KEY)}`, {
+    const response = await fetch(`${ENDPOINT}?key=${encodeURIComponent(apiKey)}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       signal: controller.signal,
@@ -44,9 +98,8 @@ async function callGemini(parts: Part[], options: CallOptions = {}): Promise<str
     });
     if (!response.ok) {
       const detail = await response.text().catch(() => '');
-      throw new Error(
-        `Erreur Gemini ${response.status}. ${detail.slice(0, 180)}`
-      );
+      console.warn('[SEYLI Gemini] réponse', response.status, detail.slice(0, 180));
+      throw new Error(friendlyHttpError(response.status));
     }
     const json = await response.json();
     const text: string = (json?.candidates?.[0]?.content?.parts ?? [])
@@ -55,6 +108,11 @@ async function callGemini(parts: Part[], options: CallOptions = {}): Promise<str
       .trim();
     if (!text) throw new Error('Réponse IA vide.');
     return text;
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error('Google met trop de temps à répondre. Vérifie ta connexion puis réessaie.');
+    }
+    throw error;
   } finally {
     clearTimeout(timeout);
   }

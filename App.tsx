@@ -17,7 +17,7 @@ import {
 import { useFonts } from 'expo-font';
 import { StatusBar } from 'expo-status-bar';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, BackHandler, Easing, Platform, Pressable, View } from 'react-native';
+import { ActivityIndicator, Animated, AppState, BackHandler, Easing, Platform, Pressable, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppProvider, useApp } from './src/store';
 import { NavContext, ROUTE_TITLES, type Nav, type Route, type TabKey } from './src/navigation';
@@ -25,6 +25,7 @@ import { radius, space, type } from './src/theme';
 import { AppText, IconButton } from './src/ui/kit';
 import { Glass } from './src/ui/glass';
 import { haptic, setHapticsEnabled } from './src/lib/native';
+import { setSecureScreen } from './modules/seyli-sms/src';
 import { useReduceMotion } from './src/lib/a11y';
 import AuthScreen from './src/screens/AuthScreen';
 import HomeScreen from './src/screens/HomeScreen';
@@ -37,6 +38,7 @@ import SafetyZonesScreen from './src/screens/SafetyZonesScreen';
 import InsightScreen from './src/screens/InsightScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import PrivacyScreen from './src/screens/PrivacyScreen';
+import ApiKeyScreen from './src/screens/ApiKeyScreen';
 import GuideScreen from './src/screens/GuideScreen';
 
 const TABS: { key: TabKey; label: string; icon: React.ComponentProps<typeof Ionicons>['name'] }[] = [
@@ -105,6 +107,8 @@ function ScreenForRoute({ route }: { route: Route }) {
       return <SettingsScreen />;
     case 'privacy':
       return <PrivacyScreen />;
+    case 'apikey':
+      return <ApiKeyScreen />;
     case 'guide':
       return <GuideScreen />;
     default:
@@ -400,6 +404,19 @@ function Root() {
     setHapticsEnabled(!reduceMotion);
   }, [reduceMotion]);
 
+  // Le blocage des captures est une préférence persistée : il doit être
+  // réappliqué à chaque démarrage, pas seulement au moment du réglage. Le
+  // drapeau appartient à la fenêtre Android : une activité recréée repart sans
+  // lui, d'où le rappel à chaque retour au premier plan.
+  useEffect(() => {
+    if (!ready) return;
+    setSecureScreen(state.incognitoScreenshots);
+    const sub = AppState.addEventListener('change', (next) => {
+      if (next === 'active') setSecureScreen(state.incognitoScreenshots);
+    });
+    return () => sub.remove();
+  }, [ready, state.incognitoScreenshots]);
+
   if (!ready) return <Splash />;
   return (
     <>
@@ -409,10 +426,23 @@ function Root() {
   );
 }
 
-// The native launch screen is only dismissed by this call: without it, an
-// early render failure leaves the splash (and its Expo placeholder logo) on
-// screen forever, with no way for the user to tell what went wrong.
-void SplashScreen.preventAutoHideAsync().catch(() => {});
+// Prevent the splash from auto-hiding so we control exactly when it goes away.
+// Must be called at module level before any component renders.
+SplashScreen.preventAutoHideAsync().catch((err) => {
+  console.warn('SplashScreen.preventAutoHideAsync failed:', err);
+});
+
+function ThemedSafeArea({ children }: { children: React.ReactNode }) {
+  const { palette } = useApp();
+  return (
+    <SafeAreaView
+      style={{ flex: 1, backgroundColor: palette.background }}
+      edges={['top', 'left', 'right']}
+    >
+      {children}
+    </SafeAreaView>
+  );
+}
 
 export default function App() {
   const [fontsLoaded, fontError] = useFonts({
@@ -436,23 +466,38 @@ export default function App() {
   const ready = fontsLoaded || !!fontError || fontTimeout;
 
   useEffect(() => {
-    if (ready) void SplashScreen.hideAsync().catch(() => {});
+    // Hide the splash screen once the app is ready (fonts loaded or timeout reached)
+    // Also ensure it hides after a hard timeout of 5 seconds as a safety net
+    const hideSplash = async () => {
+      try {
+        await SplashScreen.hideAsync();
+      } catch (e) {
+        console.warn('SplashScreen.hideAsync failed:', e);
+      }
+    };
+
+    // Immediate hide if ready, otherwise wait for font timeout
+    if (ready) {
+      hideSplash();
+    }
+
+    // Fallback: always hide after 5 seconds even if fonts aren't loaded
+    const fallbackTimer = setTimeout(hideSplash, 5000);
+    return () => clearTimeout(fallbackTimer);
   }, [ready]);
 
   if (!ready) {
-    return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FAF6F8' }}>
-        <ActivityIndicator color="#D22B6D" />
-      </View>
-    );
+    // During initial load, render null so the splash screen stays visible
+    // and we maintain control over when to hide it.
+    return null;
   }
 
   return (
     <SafeAreaProvider>
       <AppProvider>
-        <SafeAreaView style={{ flex: 1 }} edges={['top', 'left', 'right']}>
+        <ThemedSafeArea>
           <Root />
-        </SafeAreaView>
+        </ThemedSafeArea>
       </AppProvider>
     </SafeAreaProvider>
   );

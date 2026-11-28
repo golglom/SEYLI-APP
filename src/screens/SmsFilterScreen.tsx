@@ -1,12 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useMemo, useState } from 'react';
 import { Alert, Linking, Pressable, View } from 'react-native';
-import { classifySmsWithGemini, geminiEnabled } from '../lib/gemini';
+import { classifySmsWithGemini } from '../lib/gemini';
 import { copyToClipboard } from '../lib/native';
 import { scoreSms } from '../lib/smsFilter';
 import { useApp } from '../store';
 import { radius } from '../theme';
-import { AppText, Badge, Btn, Card, Chip, EmptyState, Field, Screen, SectionTitle, ToggleRow } from '../ui/kit';
+import { AppText, Badge, BentoScreen, BentoPanel, BentoGrid, BentoRow, BentoChip, BentoField, BentoBtn } from '../ui/bento';
 import { SMS_CATEGORY_LABELS, SMS_PRIORITY_LABELS, SmsMessage, SmsPriority } from '../types';
 
 const PRIORITY_COLORS: Record<SmsPriority, 'LOW' | 'MODERATE' | 'CRITICAL'> = {
@@ -19,6 +19,7 @@ type Tab = 'HIGH_PRIORITY' | 'ALL' | 'REVIEW' | 'SAFE';
 
 export default function SmsFilterScreen() {
   const { palette, state, addSms, addEvidence, updateSms, deleteSms, set } = useApp();
+  const aiReady = state.geminiKey.trim().length > 0;
   const [sender, setSender] = useState('');
   const [body, setBody] = useState('');
   const [loading, setLoading] = useState(false);
@@ -39,14 +40,14 @@ export default function SmsFilterScreen() {
 
   const analyze = async () => {
     if (!body.trim()) {
-      Alert.alert('Message vide', 'Colle le SMS reçu pour l’analyser.');
+      Alert.alert('Message vide', 'Colle le SMS reçu pour l\'analyser.');
       return;
     }
     setLoading(true);
     try {
       const local = scoreSms(sender, body);
       let classification = local;
-      if (geminiEnabled) {
+      if (aiReady) {
         try {
           const remote = await classifySmsWithGemini(sender, body);
           classification = {
@@ -110,44 +111,24 @@ export default function SmsFilterScreen() {
   };
 
   return (
-    <Screen>
-      <Card style={{ gap: 12 }}>
-        <SectionTitle
-          title="Filtre SMS intelligent"
-          subtitle={geminiEnabled ? 'Classifieur Gemini + moteur embarqué' : 'Moteur local 100 % hors-ligne'}
-        />
-        <View
-          style={{
-            flexDirection: 'row',
-            gap: 8,
-            padding: 10,
-            backgroundColor: palette.surfaceAlt,
-            borderRadius: radius.md,
-          }}
-        >
-          <Ionicons name="information-circle-outline" size={18} color={palette.tertiary} />
-          <AppText variant="caption" color={palette.muted} style={{ flex: 1 }}>
-            Expo Go ne peut pas lire ta boîte SMS. Colle un message pour l’analyser, ou teste avec un exemple.
-            L’application Android native, elle, filtre automatiquement les SMS entrants.
-          </AppText>
-        </View>
-        <ToggleRow
-          icon="notifications-outline"
-          title="Alerte auto sur SMS à risque"
-          subtitle="Dans Expo Go : notification locale de démonstration uniquement."
-          value={state.smsAutoFilter}
-          onValueChange={(next) => {
-            set('smsAutoFilter', next);
-            if (next) {
-              Alert.alert(
-                'Filtre auto',
-                'Sur Expo Go, l’interception native des SMS n’est pas disponible. Le filtre manuel reste actif.'
-              );
-            }
-          }}
-        />
-        <Field label="EXPÉDITEUR" value={sender} onChangeText={setSender} placeholder="+228… ou nom du contact" maxLength={80} />
-        <Field
+    <BentoScreen>
+      <BentoPanel tone="glass" style={{ gap: 12 }}>
+        <AppText variant="h3">Filtre SMS intelligent</AppText>
+        <AppText variant="caption" color={palette.muted}>
+          {aiReady ? 'Gemini avec ta clé + moteur embarqué' : 'Moteur local 100 % hors-ligne'}
+        </AppText>
+      </BentoPanel>
+
+      <BentoPanel style={{ padding: 10, borderRadius: radius.md, backgroundColor: palette.surfaceAlt }}>
+        <Ionicons name="information-circle-outline" size={18} color={palette.tertiary} />
+        <AppText variant="caption" color={palette.muted} style={{ flex: 1 }}>
+          {aiReady ? 'Colle un message reçu pour l\'analyser : il est envoyé à Google avec ta clé, puis conservé seulement sur ce téléphone.' : 'Colle un message reçu pour l\'analyser, ou teste avec un exemple : l\'analyse se fait sur ton téléphone.'}
+        </AppText>
+      </BentoPanel>
+
+      <BentoRow style={{ gap: 8, marginTop: 8 }}>
+        <BentoField label="EXPÉDITEUR" value={sender} onChangeText={setSender} maxLength={80} placeholder="+228… ou nom du contact" />
+        <BentoField
           label="MESSAGE REÇU"
           value={body}
           onChangeText={setBody}
@@ -155,57 +136,43 @@ export default function SmsFilterScreen() {
           maxLength={2000}
           placeholder="Colle ici le SMS suspect…"
         />
-        <View style={{ flexDirection: 'row', gap: 8 }}>
-          <Btn label="Analyser" icon="scan-outline" onPress={analyze} loading={loading} style={{ flex: 1 }} />
-          <Btn
-            label="Exemple"
-            variant="ghost"
-            compact
-            onPress={() => {
-              setSender('+228 90 00 00 00');
-              setBody(
-                'Salope, tout le monde se moque de toi. Envoie 25 000 FCFA sur Flooz ce soir sinon je publie tes photos !!!'
-              );
-            }}
-          />
-        </View>
-      </Card>
+      </BentoRow>
 
-      <View style={{ gap: 10 }}>
-        <SectionTitle title="Messages analysés" subtitle={`${state.sms.length} message(s)`} />
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-          <Chip label="Tous" active={tab === 'ALL'} onPress={() => setTab('ALL')} />
-          <Chip label="Haute priorité" active={tab === 'HIGH_PRIORITY'} onPress={() => setTab('HIGH_PRIORITY')} />
-          <Chip label="À vérifier" active={tab === 'REVIEW'} onPress={() => setTab('REVIEW')} />
-          <Chip label="Sûrs" active={tab === 'SAFE'} onPress={() => setTab('SAFE')} />
-        </View>
-      </View>
+      <BentoRow style={{ gap: 8, marginTop: 8 }}>
+        <BentoBtn label="Analyser" icon="scan-outline" onPress={analyze} loading={loading} style={{ flex: 1 }} />
+        <BentoBtn label="Exemple" variant="ghost" compact onPress={() => {
+          setSender('+228 90 00 00 00');
+          setBody('Salope, tout le monde se moque de toi. Envoie 25 000 FCFA sur Flooz ce soir sinon je publie tes photos !!!');
+        }} />
+      </BentoRow>
+
+      <BentoPanel style={{ gap: 10, marginTop: 12 }}>
+        <AppText variant="h3">Messages analysés</AppText>
+        <AppText variant="caption" color={palette.muted}>{state.sms.length} message(s)</AppText>
+      </BentoPanel>
+
+      <BentoRow style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
+        <BentoChip label="Tous" active={tab === 'ALL'} onPress={() => setTab('ALL')} />
+        <BentoChip label="Haute priorité" active={tab === 'HIGH_PRIORITY'} onPress={() => setTab('HIGH_PRIORITY')} />
+        <BentoChip label="À vérifier" active={tab === 'REVIEW'} onPress={() => setTab('REVIEW')} />
+        <BentoChip label="Sûrs" active={tab === 'SAFE'} onPress={() => setTab('SAFE')} />
+      </BentoRow>
 
       {filtered.length === 0 ? (
-        <EmptyState
-          icon="chatbox-ellipses-outline"
-          title="Aucun message ici"
-          body="Colle un SMS suspect ci-dessus : SEYLI détecte menaces, chantage, sextorsion et humiliation."
-        />
+        <AppText variant="caption" color={palette.muted}>Aucun message ici</AppText>
       ) : (
         filtered.map((message) => {
           const color = palette.severity[PRIORITY_COLORS[message.priority]];
           return (
-            <Card key={message.id} style={{ gap: 8, borderColor: color + '55' }}>
+            <BentoPanel key={message.id} style={{ gap: 8, borderColor: color + '55' }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <Badge label={SMS_PRIORITY_LABELS[message.priority]} color={color} />
                 <Badge label={SMS_CATEGORY_LABELS[message.category]} color={palette.secondary} />
                 <View style={{ flex: 1 }} />
-                <AppText variant="micro" color={palette.muted}>
-                  {message.confidenceScore}/100
-                </AppText>
+                <AppText variant="micro" color={palette.muted}>{message.confidenceScore}/100</AppText>
               </View>
-              <AppText variant="label" numberOfLines={1}>
-                {message.sender}
-              </AppText>
-              <AppText variant="bodySm" color={palette.muted} numberOfLines={3}>
-                {message.body}
-              </AppText>
+              <AppText variant="label" numberOfLines={1}>{message.sender}</AppText>
+              <AppText variant="bodySm" color={palette.muted} numberOfLines={3}>{message.body}</AppText>
               <AppText variant="caption">{message.rationale}</AppText>
               {message.signals.length ? (
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
@@ -215,74 +182,34 @@ export default function SmsFilterScreen() {
                 </View>
               ) : null}
               <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
-                <Btn
-                  label="Archiver"
-                  icon="lock-closed-outline"
-                  compact
-                  variant="secondary"
-                  onPress={() => archiveSms(message)}
-                />
-                <Btn
-                  label="Copier"
-                  icon="copy-outline"
-                  compact
-                  variant="ghost"
-                  onPress={async () => {
-                    const copied = await copyToClipboard(`${message.sender}: ${message.body}`);
-                    Alert.alert(copied ? 'Copié' : 'Copie impossible', copied ? undefined : 'Le presse-papiers est indisponible.');
-                  }}
-                />
-                <Btn
-                  label="Sûr"
-                  icon="checkmark-circle-outline"
-                  compact
-                  variant="ghost"
-                  onPress={() => updateSms(message.id, { reviewStatus: 'REVIEWED_SAFE' })}
-                />
-                <Btn
-                  label="Supprimer"
-                  icon="trash-outline"
-                  compact
-                  variant="ghost"
-                  onPress={() =>
-                    Alert.alert('Supprimer ce message ?', 'Il disparaîtra de l’historique local.', [
-                      { text: 'Annuler', style: 'cancel' },
-                      { text: 'Supprimer', style: 'destructive', onPress: () => deleteSms(message.id) },
-                    ])
-                  }
-                />
+                <BentoBtn label="Archiver" icon="lock-closed-outline" variant="secondary" compact onPress={() => archiveSms(message)} />
+                <BentoBtn label="Copier" icon="copy-outline" variant="ghost" compact onPress={async () => {
+                  const copied = await copyToClipboard(`${message.sender}: ${message.body}`);
+                  Alert.alert(copied ? 'Copié' : 'Copie impossible', copied ? undefined : 'Le presse-papiers est indisponible.');
+                }} />
+                <BentoBtn label="Sûr" icon="checkmark-circle-outline" variant="ghost" compact onPress={() => updateSms(message.id, { reviewStatus: 'REVIEWED_SAFE' })} />
+                <BentoBtn label="Supprimer" icon="trash-outline" variant="ghost" compact onPress={() => {
+                  Alert.alert('Supprimer ce message ?', 'Il disparaîtra de l\'historique local.', [
+                    { text: 'Annuler', style: 'cancel' },
+                    { text: 'Supprimer', style: 'destructive', onPress: () => deleteSms(message.id) },
+                  ]);
+                }} />
               </View>
-            </Card>
+            </BentoPanel>
           );
         })
       )}
 
-      <Card tone="alt" style={{ gap: 8 }}>
+      <BentoPanel tone="alt" style={{ gap: 8 }}>
         <AppText variant="label">Numéros à connaître</AppText>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-          {[
-            { label: 'Allô 1011', number: '1011' },
-            { label: '3018', number: '3018' },
-            { label: 'Police 117', number: '117' },
-            { label: 'ANCy', number: '+22897525858' },
-          ].map((item) => (
-            <Pressable
-              key={item.number}
-              onPress={() => Linking.openURL(`tel:${item.number}`)}
-              style={{
-                paddingHorizontal: 11,
-                paddingVertical: 7,
-                borderRadius: radius.pill,
-                backgroundColor: palette.surface,
-                borderWidth: 1,
-                borderColor: palette.outline,
-              }}
-            >
+          {[{ label: 'Allô 1011', number: '1011' }, { label: '3018', number: '3018' }, { label: 'Police 117', number: '117' }, { label: 'ANCy', number: '+22897525858' }].map((item) => (
+            <Pressable key={item.number} onPress={() => Linking.openURL(`tel:${item.number}`)} style={{ paddingHorizontal: 11, paddingVertical: 7, borderRadius: radius.pill, backgroundColor: palette.surface, borderWidth: 1, borderColor: palette.outline }}>
               <AppText variant="micro">{item.label}</AppText>
             </Pressable>
           ))}
         </View>
-      </Card>
-    </Screen>
+      </BentoPanel>
+    </BentoScreen>
   );
 }

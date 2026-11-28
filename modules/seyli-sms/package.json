@@ -1,0 +1,7 @@
+{
+  "name": "seyli-sms",
+  "version": "1.0.0",
+  "description": "Envoi direct de SMS pour l'alerte SOS SEYLI (Android).",
+  "main": "src/index.ts",
+  "private": true
+}

@@ -7,7 +7,8 @@ import { dial } from '../lib/emergency';
 import { useNav } from '../navigation';
 import { useApp } from '../store';
 import { radius, type ThemeMode } from '../theme';
-import { AppText, Badge, Card, Chip, Divider, IconTile, Screen, SectionTitle } from '../ui/kit';
+import { AppText, Badge, Chip, Divider, IconTile, SectionTitle } from '../ui/kit';
+import { BentoPanel, BentoScreen } from '../ui/bento';
 
 function Row({
   icon,
@@ -62,8 +63,8 @@ export default function SettingsScreen() {
   ];
 
   return (
-    <Screen>
-      <Card style={{ gap: 14 }}>
+    <BentoScreen>
+      <BentoPanel contentStyle={{ gap: 14 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
           <LinearGradient
             colors={[palette.primary, palette.primaryDeep]}
@@ -108,10 +109,20 @@ export default function SettingsScreen() {
             />
           ))}
         </View>
-      </Card>
+      </BentoPanel>
 
-      <Card style={{ gap: 6 }}>
+      <BentoPanel contentStyle={{ gap: 6 }}>
         <SectionTitle title="Configuration" />
+        <Row
+          icon="key-outline"
+          title="Clé API IA"
+          subtitle={
+            state.geminiKey.trim()
+              ? 'Connectée — analyses Gemini avec ta propre clé'
+              : 'Non connectée — analyse locale uniquement'
+          }
+          onPress={() => nav.navigate('apikey')}
+        />
         <Row
           icon="shield-half-outline"
           title="Confidentialité"
@@ -142,9 +153,9 @@ export default function SettingsScreen() {
           subtitle="Tendances, plateformes, auteurs"
           onPress={() => nav.navigate('insight')}
         />
-      </Card>
+      </BentoPanel>
 
-      <Card style={{ gap: 10 }}>
+      <BentoPanel contentStyle={{ gap: 10 }}>
         <SectionTitle title="Tes données locales" />
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
           <Badge label={`${state.evidences.length} preuves`} color={palette.primary} />
@@ -154,11 +165,11 @@ export default function SettingsScreen() {
           <Badge label={`${state.zones.length} zones`} color={palette.severity.LOW} />
         </View>
         <AppText variant="caption" color={palette.muted}>
-          Tout est stocké sur cet appareil via AsyncStorage. Aucun compte, aucun serveur SEYLI.
+          Tout est stocké sur cet appareil. Aucun compte, aucun serveur SEYLI.
         </AppText>
-      </Card>
+      </BentoPanel>
 
-      <Card style={{ gap: 8 }}>
+      <BentoPanel contentStyle={{ gap: 8 }}>
         <SectionTitle title="Urgences Togo" />
         {EMERGENCY_NUMBERS.slice(0, 4).map((item) => (
           <Pressable
@@ -174,10 +185,10 @@ export default function SettingsScreen() {
               {item.number}
             </AppText>
           </Pressable>
-        ))}
-      </Card>
+                  ))}
+      </BentoPanel>
 
-      <Card style={{ gap: 4 }}>
+      <BentoPanel contentStyle={{ gap: 4 }}>
         <SectionTitle title="Session & données" />
         <Row
           icon="log-out-outline"
@@ -212,18 +223,18 @@ export default function SettingsScreen() {
             )
           }
         />
-      </Card>
+      </BentoPanel>
 
-      <Card tone="alt" style={{ gap: 8 }}>
+      <BentoPanel tone="soft" contentStyle={{ gap: 8 }}>
         <AppText variant="label">SEYLI · Secure Your Life · Togo</AppText>
         <AppText variant="caption" color={palette.muted}>
-          Version Expo 1.0.0 — portage de l’application Android. Expo Go ne permet pas l’interception SMS, la
-          localisation en arrière-plan ni la capture d’écran incognito native.
+          Version 1.0.6 — application Android signée. Le suivi de position s’arrête quand tu fermes
+          l’application ; les preuves restent sur ton téléphone.
         </AppText>
         <AppText variant="caption" color={palette.muted}>
           Allô 1011 (gratuit 24h/24) • 3018 • ANCy +228 97 52 58 58
         </AppText>
-      </Card>
-    </Screen>
+      </BentoPanel>
+    </BentoScreen>
   );
 }

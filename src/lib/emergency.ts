@@ -1,4 +1,4 @@
-import { Alert, Linking, Platform, Share } from 'react-native';
+import { Alert, Linking, PermissionsAndroid, Platform, Share } from 'react-native';
 import * as Location from 'expo-location';
 import type { TrustedContact } from '../types';
 
@@ -28,21 +28,73 @@ export function openSms(phones: string[], body: string) {
 }
 
 /**
- * Delivers the alert with the SMS module, without the user having to press
- * "Envoyer": on Android a build that holds SEND_SMS sends it directly, which is
- * the point of a one-tap SOS. iOS and Expo Go always show the composer, and any
- * unavailable module simply reports a failure so the caller can fall back.
+ * `SEND_SMS` is a runtime permission on Android 6+: without it the native
+ * module throws, and the SOS would silently fall back to the composer.
  */
-async function sendDirect(phones: string[], body: string): Promise<boolean> {
-  const recipients = cleanPhones(phones);
-  if (!recipients.length) return false;
+async function ensureSmsPermission(): Promise<boolean> {
+  if (Platform.OS !== 'android') return false;
   try {
-    const SMS = await import('expo-sms');
-    if (!(await SMS.isAvailableAsync())) return false;
-    const { result } = await SMS.sendSMSAsync(recipients, body);
-    return result !== 'cancelled' && result !== 'unknown';
+    const sms = PermissionsAndroid.PERMISSIONS.SEND_SMS;
+    // Some telephony stacks resolve the sending subscription through an API
+    // guarded by READ_PHONE_STATE and throw `getGroupIdLevel1` without it, so the
+    // SMS would never leave the phone. Both are requested together, once.
+    const phoneState = PermissionsAndroid.PERMISSIONS.READ_PHONE_STATE;
+    const hasSms = await PermissionsAndroid.check(sms);
+    const hasPhoneState = await PermissionsAndroid.check(phoneState);
+    if (hasSms && hasPhoneState) return true;
+
+    const statuses = await PermissionsAndroid.requestMultiple([sms, phoneState]);
+    return (
+      statuses[sms] === PermissionsAndroid.RESULTS.GRANTED &&
+      statuses[phoneState] === PermissionsAndroid.RESULTS.GRANTED
+    );
   } catch {
     return false;
+  }
+}
+
+export interface SosDelivery {
+  outcome: 'sent' | 'composer';
+  recipients: number;
+  /** Why the direct send was skipped, shown to the user and logged for support. */
+  reason?: string;
+}
+
+/**
+ * Delivers the alert through the native module, without the user having to press
+ * "Envoyer": a build that holds SEND_SMS sends it directly, which is the point of
+ * a one-tap SOS. iOS, Expo Go and builds without the module report why so the
+ * caller can explain the fallback instead of silently opening a composer.
+ */
+async function sendDirect(phones: string[], body: string): Promise<SosDelivery> {
+  const recipients = cleanPhones(phones);
+  if (!recipients.length) return { outcome: 'composer', recipients: 0, reason: 'Aucun numéro.' };
+  if (Platform.OS !== 'android') {
+    return { outcome: 'composer', recipients: recipients.length, reason: 'iOS ouvre toujours Messages.' };
+  }
+
+  let module: typeof import('../../modules/seyli-sms/src');
+  try {
+    module = await import('../../modules/seyli-sms/src');
+  } catch {
+    return { outcome: 'composer', recipients: recipients.length, reason: 'Module SMS absent du build.' };
+  }
+  if (!module.isSmsModuleAvailable) {
+    return { outcome: 'composer', recipients: recipients.length, reason: 'Module SMS absent du build.' };
+  }
+  if (!(await ensureSmsPermission())) {
+    return { outcome: 'composer', recipients: recipients.length, reason: 'Permission d’envoi refusée.' };
+  }
+
+  try {
+    const result = await module.sendSmsDirectly(recipients, body);
+    if (result.recipients > 0) {
+      return { outcome: 'sent', recipients: result.recipients };
+    }
+    return { outcome: 'composer', recipients: recipients.length, reason: 'Le téléphone a refusé l’envoi.' };
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    return { outcome: 'composer', recipients: recipients.length, reason };
   }
 }
 
@@ -51,13 +103,12 @@ async function sendDirect(phones: string[], body: string): Promise<boolean> {
  * Messages composer with everything pre-filled. Returns how it was handled so
  * screens can adapt their confirmation copy.
  */
-export async function sendSmsOrCompose(
-  phones: string[],
-  body: string
-): Promise<'sent' | 'composer'> {
-  if (await sendDirect(phones, body)) return 'sent';
+export async function sendSmsOrCompose(phones: string[], body: string): Promise<SosDelivery> {
+  const direct = await sendDirect(phones, body);
+  if (direct.outcome === 'sent') return direct;
+  if (direct.reason) console.warn('[SEYLI SOS] envoi direct impossible :', direct.reason);
   openSms(phones, body);
-  return 'composer';
+  return direct;
 }
 
 export async function shareText(title: string, body: string) {
@@ -83,13 +134,33 @@ export interface SosLocation {
   longitude?: number;
 }
 
-export async function locate(): Promise<SosLocation> {
+/**
+ * Best-effort position for the SOS message.
+ *
+ * `getCurrentPositionAsync` can wait for a fix indefinitely indoors, in a car or
+ * on a device with location services off — and an SOS that waits for the GPS is
+ * an SOS that never sends the SMS. The alert therefore goes out with the last
+ * known position, or without one, after a short budget.
+ */
+export async function locate(timeoutMs = 3500): Promise<SosLocation> {
   try {
     const permission = await Location.requestForegroundPermissionsAsync();
     if (!permission.granted) return {};
-    const position = await Location.getCurrentPositionAsync({
-      accuracy: Location.Accuracy.Balanced,
-    });
+
+    const last = await Location.getLastKnownPositionAsync({ maxAge: 15 * 60 * 1000 }).catch(
+      () => null
+    );
+    if (last) {
+      return { latitude: last.coords.latitude, longitude: last.coords.longitude };
+    }
+
+    const position = await Promise.race([
+      Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
+      new Promise<null>((resolve) => {
+        setTimeout(() => resolve(null), timeoutMs);
+      }),
+    ]);
+    if (!position) return {};
     return { latitude: position.coords.latitude, longitude: position.coords.longitude };
   } catch {
     return {};
@@ -124,6 +195,29 @@ export async function triggerSos(contacts: TrustedContact[], alias: string) {
   }
   const position = await locate();
   const message = buildSosMessage(alias, position);
-  await sendSmsOrCompose(phones, message);
-  dial('3018');
+  const delivery = await sendSmsOrCompose(phones, message);
+
+  // No automatic `tel:3018`: it used to fire only when coming back from the
+  // composer, which opened the dialer behind the alert and looked like a second,
+  // unrelated action. The call is now an explicit choice in the confirmation.
+  if (delivery.outcome === 'sent') {
+    Alert.alert(
+      'Alerte SOS envoyée',
+      `Le message et ta position sont partis vers ${delivery.recipients} proche(s). Tu peux maintenant appeler les secours.`,
+      [
+        { text: 'Fermer', style: 'cancel' },
+        { text: 'Appeler 3018', onPress: () => dial('3018') },
+      ]
+    );
+    return;
+  }
+
+  Alert.alert(
+    'Alerte prête dans Messages',
+    `SEYLI n’a pas pu envoyer directement (${delivery.reason ?? 'raison inconnue'}). Le SMS et ta position sont préremplis : appuie sur Envoyer pour qu’il parte.`,
+    [
+      { text: 'Fermer', style: 'cancel' },
+      { text: 'Appeler 3018', onPress: () => dial('3018') },
+    ]
+  );
 }

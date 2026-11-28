@@ -53,6 +53,15 @@ const FEATURES: Feature[] = [
   { phrase: 'ferme ta gueule', weight: 2.7, category: 'CYBERHARASSMENT', label: 'Agressivité verbale' },
   { phrase: 'ta gueule', weight: 2.5, category: 'CYBERHARASSMENT', label: 'Agressivité verbale' },
   { phrase: 'bitch', weight: 2.9, category: 'CYBERHARASSMENT', label: 'Insulte' },
+  { phrase: 'nulle', weight: 1.7, category: 'CYBERHARASSMENT', label: 'Dévalorisation' },
+  { phrase: 'debile', weight: 1.9, category: 'CYBERHARASSMENT', label: 'Dévalorisation' },
+  { phrase: 'idiote', weight: 1.8, category: 'CYBERHARASSMENT', label: 'Dévalorisation' },
+  { phrase: 'stupide', weight: 1.8, category: 'CYBERHARASSMENT', label: 'Dévalorisation' },
+  { phrase: 'moche', weight: 1.6, category: 'CYBERHARASSMENT', label: 'Dévalorisation' },
+  { phrase: 'tu es une honte', weight: 2.3, category: 'CYBERHARASSMENT', label: 'Humiliation' },
+  { phrase: 'sers a rien', weight: 2.4, category: 'CYBERHARASSMENT', label: 'Dévalorisation' },
+  { phrase: 'personne ne veut de toi', weight: 2.5, category: 'CYBERHARASSMENT', label: 'Isolement psychologique' },
+  { phrase: 'tout le monde te deteste', weight: 2.6, category: 'CYBERHARASSMENT', label: 'Humiliation de groupe' },
   { phrase: 'rumeur', weight: 1.8, category: 'CYBERHARASSMENT', label: 'Propagation de rumeur' },
   { phrase: 'ton adresse', weight: 2.5, category: 'DOXXING_IMPERSONATION', label: "Ciblage d'adresse" },
   { phrase: 'faux compte', weight: 2.4, category: 'DOXXING_IMPERSONATION', label: 'Usurpation de compte' },
@@ -80,6 +89,7 @@ const BENIGN: Record<string, number> = {
   merci: -0.7,
   'bonne journee': -0.9,
   'a demain': -0.8,
+  'nulle part': -1.6,
 };
 
 export function scoreSms(sender: string, body: string): SmsClassification {
@@ -177,8 +187,8 @@ export function offlineAnalysis(text: string) {
     manipulationTactics: [] as string[],
     summary:
       result.priority === 'NORMAL'
-        ? 'Le message ne présente pas de signal évident de harcèlement d’après le moteur local. Reste attentive si la situation se répète.'
-        : `Le moteur local détecte des signaux préoccupants (${result.signals.join(', ') || result.category}). Analyse hors-ligne, sans IA distante.`,
+        ? 'Le message ne présente pas de signal évident de harcèlement. Reste attentive si la situation se répète.'
+        : `Des signaux préoccupants ont été repérés (${result.signals.join(', ') || result.category}). L’analyse a été faite sur ton téléphone.`,
     recommendedActions:
       result.priority === 'HIGH_PRIORITY'
         ? [

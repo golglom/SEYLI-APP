@@ -17,3 +17,6 @@ verify-*.log
 scan*.cjs
 android/
 ios/
+!modules/*/android/
+modules/*/android/build/
+modules/*/android/.gradle/

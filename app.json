@@ -2,7 +2,7 @@
   "expo": {
     "name": "SEYLI",
     "slug": "seyli",
-    "version": "1.0.2",
+    "version": "1.0.7",
     "icon": "./assets/icon.png",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
@@ -18,11 +18,12 @@
     },
     "android": {
       "package": "com.seyli.app",
-      "versionCode": 3,
+      "versionCode": 8,
       "permissions": [
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION",
         "SEND_SMS",
+        "READ_PHONE_STATE",
         "VIBRATE",
         "USE_BIOMETRIC"
       ]

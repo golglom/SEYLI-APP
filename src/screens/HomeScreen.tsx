@@ -3,65 +3,60 @@ import { LinearGradient } from 'expo-linear-gradient';
 import React, { useState } from 'react';
 import { Modal, Pressable, Vibration, View } from 'react-native';
 import { EMERGENCY_NUMBERS } from '../data/static';
+import { useReduceTransparency } from '../lib/a11y';
 import { dial, triggerSos } from '../lib/emergency';
 import { useNav } from '../navigation';
 import { useApp } from '../store';
 import { radius, space } from '../theme';
-import { AppText, Btn, Card, Screen, SectionTitle, Stat } from '../ui/kit';
+import { AppText, Btn, SectionTitle, Stat } from '../ui/kit';
 import { Glass } from '../ui/glass';
+import {
+  BentoAction,
+  BentoColumn,
+  BentoGrid,
+  BentoRow,
+  BentoScreen,
+  BentoTile,
+} from '../ui/bento';
 import { MOODS, PLATFORMS } from '../types';
 
-function QuickTile({
-  icon,
+function EmergencyChip({
   label,
-  onPress,
+  number,
 }: {
-  icon: React.ComponentProps<typeof Ionicons>['name'];
   label: string;
-  onPress: () => void;
+  number: string;
 }) {
   const { palette } = useApp();
   return (
     <Pressable
-      onPress={onPress}
+      onPress={() => dial(number)}
       accessibilityRole="button"
-      accessibilityLabel={label}
+      accessibilityLabel={`Appeler ${label}`}
       style={({ pressed }) => ({
-        width: '48.4%',
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 10,
-        padding: 12,
-        borderRadius: radius.md,
-        backgroundColor: palette.surface,
+        gap: 6,
+        paddingHorizontal: 12,
+        paddingVertical: 9,
+        borderRadius: radius.pill,
+        backgroundColor: palette.isDark ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.66)',
         borderWidth: 1,
-        borderColor: palette.hairline,
-        opacity: pressed ? 0.8 : 1,
-        transform: [{ scale: pressed ? 0.98 : 1 }],
+        borderColor: palette.isDark ? 'rgba(255,255,255,0.09)' : 'rgba(255,255,255,0.9)',
+        opacity: pressed ? 0.75 : 1,
       })}
     >
-      <View
-        style={{
-          width: 38,
-          height: 38,
-          borderRadius: 13,
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: palette.primaryContainer,
-        }}
-      >
-        <Ionicons name={icon} size={19} color={palette.primary} />
-      </View>
-      <AppText variant="bodySm" style={{ flex: 1, lineHeight: 19 }} numberOfLines={2}>
-        {label}
+      <Ionicons name="call" size={13} color={palette.primary} />
+      <AppText variant="caption" color={palette.text}>
+        {label} · {number}
       </AppText>
-      <Ionicons name="chevron-forward" size={14} color={palette.muted} />
     </Pressable>
   );
 }
 
 export default function HomeScreen() {
   const { palette, state, addMood } = useApp();
+  const reduceTransparency = useReduceTransparency();
   const nav = useNav();
   const [moodTip, setMoodTip] = useState<string | null>(null);
   const [panic, setPanic] = useState(false);
@@ -90,9 +85,16 @@ export default function HomeScreen() {
     setPanic(false);
   };
 
+  const glassInner = reduceTransparency
+    ? palette.surfaceAlt
+    : palette.isDark
+      ? 'rgba(255,255,255,0.06)'
+      : 'rgba(255,255,255,0.66)';
+
   return (
     <>
-      <Screen>
+      <BentoScreen>
+
         <LinearGradient
           colors={palette.heroGradient}
           start={{ x: 0, y: 0 }}
@@ -213,30 +215,17 @@ export default function HomeScreen() {
           </View>
         </LinearGradient>
 
-        <View style={{ gap: 10 }}>
-          <View style={{ flexDirection: 'row', gap: 10 }}>
-            <Pressable
+        <BentoGrid>
+          <BentoRow>
+            <BentoTile
+              tone="danger"
+              height={192}
+              style={{ flex: 1.12 }}
               onPress={onSos}
-              accessibilityRole="button"
               accessibilityLabel="SOS 3018 en un clic"
-              style={({ pressed }) => ({ flex: 1, opacity: pressed ? 0.88 : 1 })}
+              contentStyle={{ justifyContent: 'space-between' }}
             >
-              <LinearGradient
-                colors={['#E5344F', '#9E1030']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={{
-                  borderRadius: radius.lg,
-                  padding: 16,
-                  gap: 10,
-                  minHeight: 132,
-                  shadowColor: '#9E1030',
-                  shadowOpacity: 0.32,
-                  shadowRadius: 16,
-                  shadowOffset: { width: 0, height: 8 },
-                  elevation: 4,
-                }}
-              >
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                 <View
                   style={{
                     width: 38,
@@ -244,141 +233,207 @@ export default function HomeScreen() {
                     borderRadius: 13,
                     alignItems: 'center',
                     justifyContent: 'center',
-                    backgroundColor: '#FFFFFF24',
+                    backgroundColor: 'rgba(255,255,255,0.24)',
+                    borderWidth: 1,
+                    borderColor: 'rgba(255,255,255,0.35)',
                   }}
                 >
                   <Ionicons name="warning" size={20} color="#FFFFFF" />
                 </View>
+                <View
+                  style={{
+                    paddingHorizontal: 9,
+                    paddingVertical: 4,
+                    borderRadius: radius.pill,
+                    backgroundColor: 'rgba(255,255,255,0.18)',
+                    borderWidth: 1,
+                    borderColor: 'rgba(255,255,255,0.32)',
+                  }}
+                >
+                  <AppText variant="micro" color="#FFFFFF">
+                    1 CLIC
+                  </AppText>
+                </View>
+              </View>
+              <View style={{ gap: 4 }}>
                 <AppText variant="title" color="#FFFFFF">
                   SOS 3018
                 </AppText>
                 <AppText variant="caption" color="#FFFFFFD6">
                   SMS + position à tes proches, puis appel.
                 </AppText>
-              </LinearGradient>
-            </Pressable>
+              </View>
+            </BentoTile>
 
-            <Pressable
-              onPress={() => dial('1011')}
-              accessibilityRole="button"
-              accessibilityLabel="Appeler Allô 1011"
-              style={({ pressed }) => ({
-                flex: 1,
-                borderRadius: radius.lg,
-                backgroundColor: palette.surface,
-                borderWidth: 1,
-                borderColor: palette.hairline,
-                padding: 16,
-                gap: 10,
-                minHeight: 132,
-                opacity: pressed ? 0.85 : 1,
+            <BentoColumn>
+              <BentoTile
+                height={91}
+                onPress={() => dial('1011')}
+                accessibilityLabel="Appeler Allô 1011"
+                contentStyle={{ justifyContent: 'center' }}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 9 }}>
+                  <Ionicons name="call" size={19} color={palette.primary} />
+                  <View style={{ flex: 1, gap: 1 }}>
+                    <AppText variant="chip" numberOfLines={1}>
+                      Allô 1011
+                    </AppText>
+                    <AppText variant="micro" color={palette.muted} numberOfLines={1}>
+                      Gratuit 24h/24
+                    </AppText>
+                  </View>
+                </View>
+              </BentoTile>
+
+              <BentoTile
+                height={91}
+                onPress={startPanic}
+                accessibilityLabel="Alarme panique"
+                contentStyle={{ justifyContent: 'center' }}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 9 }}>
+                  <Ionicons name="notifications" size={19} color={palette.primary} />
+                  <View style={{ flex: 1, gap: 1 }}>
+                    <AppText variant="chip" numberOfLines={1}>
+                      Alarme panique
+                    </AppText>
+                    <AppText variant="micro" color={palette.muted} numberOfLines={1}>
+                      Vibre fort
+                    </AppText>
+                  </View>
+                </View>
+              </BentoTile>
+            </BentoColumn>
+          </BentoRow>
+
+          <BentoTile tone="soft" contentStyle={{ padding: 16, gap: 14 }}>
+            <SectionTitle title="Comment te sens-tu ?" subtitle="Un check-in rapide, sans jugement." />
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 6 }}>
+              {MOODS.map((mood) => {
+                const active = latest?.mood === mood.key;
+                return (
+                  <Pressable
+                    key={mood.key}
+                    onPress={() => onMood(mood)}
+                    accessibilityRole="button"
+                    accessibilityLabel={mood.label}
+                    style={({ pressed }) => ({
+                      flex: 1,
+                      alignItems: 'center',
+                      gap: 6,
+                      opacity: pressed ? 0.7 : 1,
+                    })}
+                  >
+                    <View
+                      style={{
+                        width: 46,
+                        height: 46,
+                        borderRadius: 23,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        backgroundColor: active
+                          ? palette.primaryContainer
+                          : palette.isDark
+                            ? 'rgba(255,255,255,0.07)'
+                            : palette.surfaceAlt,
+                        borderWidth: active ? 1.5 : 1,
+                        borderColor: active
+                          ? palette.primary
+                          : palette.isDark
+                            ? 'rgba(255,255,255,0.06)'
+                            : 'rgba(255,255,255,0.85)',
+                      }}
+                    >
+                      <AppText style={{ fontSize: 21 }}>{mood.emoji}</AppText>
+                    </View>
+                    <AppText
+                      variant="micro"
+                      color={active ? palette.primary : palette.muted}
+                      style={{ textAlign: 'center', letterSpacing: 0.1, fontSize: 10 }}
+                      numberOfLines={2}
+                    >
+                      {mood.label}
+                    </AppText>
+                  </Pressable>
+                );
               })}
-            >
+            </View>
+            {moodTip ? (
               <View
                 style={{
-                  width: 38,
-                  height: 38,
-                  borderRadius: 13,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  backgroundColor: palette.primaryContainer,
+                  backgroundColor: glassInner,
+                  borderRadius: radius.md,
+                  padding: 12,
+                  borderWidth: 1,
+                  borderColor: palette.isDark ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.9)',
                 }}
               >
-                <Ionicons name="call" size={19} color={palette.primary} />
+                <AppText variant="caption" color={palette.muted}>
+                  {moodTip}
+                </AppText>
               </View>
-              <AppText variant="title">Allô 1011</AppText>
-              <AppText variant="caption" color={palette.muted}>
-                Numéro vert gratuit 24h/24.
-              </AppText>
-            </Pressable>
-          </View>
+            ) : null}
+          </BentoTile>
+        </BentoGrid>
 
-          <View style={{ flexDirection: 'row', gap: 10 }}>
-            <Btn
-              label={panic ? 'Alarme active…' : 'Alarme panique'}
-              icon="notifications"
-              variant="ghost"
-              compact
-              onPress={startPanic}
-              style={{ flex: 1 }}
-            />
-            <Btn
-              label="Guide d’action"
-              icon="compass-outline"
-              variant="secondary"
-              compact
-              onPress={() => nav.navigate('guide')}
-              style={{ flex: 1 }}
-            />
-          </View>
+        <View style={{ gap: 10 }}>
+          <SectionTitle title="Actions rapides" subtitle="Tout SEYLI, à portée de pouce." />
+          <BentoGrid>
+            <BentoRow>
+              <BentoAction
+                icon="sparkles"
+                label="Analyser un message"
+                caption="Avec ta clé IA"
+                height={126}
+                flex={1.35}
+                onPress={() => nav.navigate('analyzer')}
+              />
+              <BentoAction
+                icon="shield-checkmark"
+                label="Coffre de preuves"
+                caption={`${evidences.length} preuve(s)`}
+                height={126}
+                onPress={() => nav.goTab('vault')}
+              />
+            </BentoRow>
+            <BentoRow>
+              <BentoAction
+                icon="chatbubbles"
+                label="Coach"
+                height={104}
+                onPress={() => nav.goTab('coach')}
+              />
+              <BentoAction
+                icon="chatbox-ellipses"
+                label="Filtre SMS"
+                height={104}
+                onPress={() => nav.navigate('sms')}
+              />
+              <BentoAction
+                icon="navigate"
+                label="Zones"
+                height={104}
+                onPress={() => nav.navigate('zones')}
+              />
+            </BentoRow>
+            <BentoRow>
+              <BentoAction
+                icon="bar-chart"
+                label="Rapport mensuel"
+                height={92}
+                onPress={() => nav.navigate('insight')}
+              />
+              <BentoAction
+                icon="compass"
+                label="Guide d’action"
+                height={92}
+                onPress={() => nav.navigate('guide')}
+              />
+            </BentoRow>
+          </BentoGrid>
         </View>
 
-        <Card style={{ gap: 14 }}>
-          <SectionTitle title="Comment te sens-tu ?" subtitle="Un check-in rapide, sans jugement." />
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 6 }}>
-            {MOODS.map((mood) => {
-              const active = latest?.mood === mood.key;
-              return (
-                <Pressable
-                  key={mood.key}
-                  onPress={() => onMood(mood)}
-                  accessibilityRole="button"
-                  accessibilityLabel={mood.label}
-                  style={({ pressed }) => ({
-                    flex: 1,
-                    alignItems: 'center',
-                    gap: 6,
-                    opacity: pressed ? 0.7 : 1,
-                  })}
-                >
-                  <View
-                    style={{
-                      width: 46,
-                      height: 46,
-                      borderRadius: 23,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      backgroundColor: active ? palette.primaryContainer : palette.surfaceAlt,
-                      borderWidth: active ? 1.5 : 0,
-                      borderColor: palette.primary,
-                    }}
-                  >
-                    <AppText style={{ fontSize: 21 }}>{mood.emoji}</AppText>
-                  </View>
-                  <AppText
-                    variant="micro"
-                    color={active ? palette.primary : palette.muted}
-                    style={{ textAlign: 'center', letterSpacing: 0.1, fontSize: 10 }}
-                    numberOfLines={2}
-                  >
-                    {mood.label}
-                  </AppText>
-                </Pressable>
-              );
-            })}
-          </View>
-          {moodTip ? (
-            <View style={{ backgroundColor: palette.surfaceAlt, borderRadius: radius.md, padding: 12 }}>
-              <AppText variant="caption" color={palette.muted}>
-                {moodTip}
-              </AppText>
-            </View>
-          ) : null}
-        </Card>
-
-        <View style={{ gap: 12 }}>
-          <SectionTitle title="Actions rapides" />
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 10 }}>
-            <QuickTile icon="sparkles" label="Analyser un message" onPress={() => nav.navigate('analyzer')} />
-            <QuickTile icon="shield-checkmark" label="Coffre de preuves" onPress={() => nav.goTab('vault')} />
-            <QuickTile icon="chatbubbles" label="Coach SEYLI" onPress={() => nav.goTab('coach')} />
-            <QuickTile icon="chatbox-ellipses" label="Filtre SMS" onPress={() => nav.navigate('sms')} />
-            <QuickTile icon="navigate" label="Zones de sécurité" onPress={() => nav.navigate('zones')} />
-            <QuickTile icon="bar-chart" label="Rapport mensuel" onPress={() => nav.navigate('insight')} />
-          </View>
-        </View>
-
-        <Card style={{ gap: 12 }}>
+        <BentoTile tone="soft" contentStyle={{ padding: 16, gap: 12 }}>
           <SectionTitle
             title="Dernières preuves"
             subtitle="Ton coffre local, sur cet appareil"
@@ -396,7 +451,7 @@ export default function HomeScreen() {
                   width: 40,
                   height: 40,
                   borderRadius: 14,
-                  backgroundColor: palette.primaryContainer,
+                  backgroundColor: glassInner,
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}
@@ -420,7 +475,7 @@ export default function HomeScreen() {
               Aucune preuve archivée pour l’instant. Commence par analyser un message ou une capture.
             </AppText>
           ) : null}
-        </Card>
+        </BentoTile>
 
         <View style={{ gap: 10 }}>
           <AppText variant="micro" color={palette.muted}>
@@ -428,29 +483,11 @@ export default function HomeScreen() {
           </AppText>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
             {EMERGENCY_NUMBERS.map((n) => (
-              <Pressable
-                key={n.number}
-                onPress={() => dial(n.number)}
-                style={({ pressed }) => ({
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 6,
-                  paddingHorizontal: 12,
-                  paddingVertical: 9,
-                  borderRadius: radius.pill,
-                  backgroundColor: palette.surfaceAlt,
-                  opacity: pressed ? 0.75 : 1,
-                })}
-              >
-                <Ionicons name="call" size={13} color={palette.primary} />
-                <AppText variant="caption" color={palette.text}>
-                  {n.label} · {n.number}
-                </AppText>
-              </Pressable>
+              <EmergencyChip key={n.number} label={n.label} number={n.number} />
             ))}
           </View>
         </View>
-      </Screen>
+      </BentoScreen>
 
       <Modal visible={panic} animationType="fade" onRequestClose={stopPanic}>
         <LinearGradient

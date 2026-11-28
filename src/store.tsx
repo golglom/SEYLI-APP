@@ -9,6 +9,7 @@ import React, {
   useState,
 } from 'react';
 import { useColorScheme } from 'react-native';
+import { setGeminiApiKey } from './lib/gemini';
 import { getPalette, Palette, ThemeMode } from './theme';
 import {
   Evidence,
@@ -35,6 +36,7 @@ export interface AppState {
   pinSalt: string | null;
   pinHash: string | null;
   incognitoScreenshots: boolean;
+  geminiKey: string;
   guideDone: string[];
   smsAutoFilter: boolean;
   monitoring: boolean;
@@ -77,6 +79,7 @@ const initialState: AppState = {
   pinSalt: null,
   pinHash: null,
   incognitoScreenshots: false,
+  geminiKey: '',
   guideDone: [],
   smsAutoFilter: false,
   monitoring: false,
@@ -133,7 +136,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         const raw = await AsyncStorage.getItem(STORAGE_KEY);
         if (raw) {
           const parsed = JSON.parse(raw) as Partial<AppState>;
-          setState({ ...initialState, ...parsed });
+          const merged = { ...initialState, ...parsed };
+          setGeminiApiKey(merged.geminiKey);
+          setState(merged);
         }
       } catch {
         // Corrupted store: start fresh.
@@ -142,6 +147,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
     })();
   }, []);
+
+  useEffect(() => {
+    if (!ready) return;
+    setGeminiApiKey(state.geminiKey);
+  }, [ready, state.geminiKey]);
 
   useEffect(() => {
     if (!ready) return;

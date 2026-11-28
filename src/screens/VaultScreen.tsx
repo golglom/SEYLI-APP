@@ -1,12 +1,14 @@
 import React, { useMemo, useState } from 'react';
-import { Alert, Image, Pressable, View } from 'react-native';
+import { Alert, Image, View } from 'react-native';
 import { shareText } from '../lib/emergency';
 import { copyToClipboard, haptic } from '../lib/native';
 import { useApp } from '../store';
 import { radius } from '../theme';
-import { AppText, Badge, Btn, Card, Chip, Divider, EmptyState, Field, IconTile, Screen, SectionTitle, Sheet } from '../ui/kit';
+import { AppText, Badge, Btn, Card, Chip, Divider, EmptyState, Field, IconTile, SectionTitle, Sheet } from '../ui/kit';
+import { BentoPanel, BentoScreen } from '../ui/bento';
 import {
   Evidence,
+  EvidenceStatus,
   PLATFORMS,
   SEVERITIES,
   STATUSES,
@@ -16,6 +18,12 @@ import {
 
 const platformLabel = (key: SocialPlatform) =>
   PLATFORMS.find((p) => p.key === key)?.label ?? key;
+
+const severityLabel = (key: SeverityLevel) =>
+  SEVERITIES.find((s) => s.key === key)?.label ?? key;
+
+const statusLabel = (key: EvidenceStatus) =>
+  STATUSES.find((s) => s.key === key)?.label ?? key;
 
 export default function VaultScreen() {
   const { palette, state, addEvidence, updateEvidence, deleteEvidence, verifyPin } = useApp();
@@ -103,7 +111,7 @@ export default function VaultScreen() {
       '',
       ...items.flatMap((ev, index) => [
         `${index + 1}. ${ev.title}`,
-        `Plateforme : ${platformLabel(ev.platform)} • Gravité : ${ev.severity} • Statut : ${ev.status}`,
+        `Plateforme : ${platformLabel(ev.platform)} • Gravité : ${severityLabel(ev.severity)} • Statut : ${statusLabel(ev.status)}`,
         ev.perpetratorHandle ? `Auteur : ${ev.perpetratorHandle}` : '',
         `Date : ${new Date(ev.createdAt).toLocaleString('fr-FR')}`,
         `Contenu : ${ev.contentExcerpt}`,
@@ -139,8 +147,8 @@ export default function VaultScreen() {
 
   if (state.biometricLock && !unlocked) {
     return (
-      <Screen>
-        <Card style={{ alignItems: 'center', gap: 16, paddingVertical: 44 }}>
+      <BentoScreen>
+        <BentoPanel contentStyle={{ alignItems: 'center', gap: 16, paddingVertical: 44 }}>
           <IconTile name="lock-closed" size={76} />
           <AppText variant="h3">Coffre verrouillé</AppText>
           <AppText variant="bodySm" color={palette.muted} style={{ textAlign: 'center', maxWidth: 280 }}>
@@ -159,15 +167,15 @@ export default function VaultScreen() {
               style={{ width: '100%' }}
             />
           ) : null}
-        </Card>
-      </Screen>
+        </BentoPanel>
+      </BentoScreen>
     );
   }
 
   return (
     <>
-      <Screen>
-        <Card style={{ gap: 14 }}>
+      <BentoScreen>
+        <BentoPanel contentStyle={{ gap: 14 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
             <IconTile name="shield-checkmark" size={44} />
             <View style={{ flex: 1 }}>
@@ -185,28 +193,28 @@ export default function VaultScreen() {
               <Chip key={s.key} label={s.label} active={filter === s.key} onPress={() => setFilter(s.key)} />
             ))}
           </View>
-        </Card>
+        </BentoPanel>
 
         {evidences.length === 0 ? (
-          <EmptyState
-            icon="lock-open-outline"
-            title="Ton coffre est vide"
-            body="Analyse un message ou ajoute une preuve manuellement. Elle restera sur ton téléphone."
-            action={<Btn label="Ajouter une preuve" icon="add" onPress={() => setAddOpen(true)} />}
-          />
+          <BentoPanel style={{ alignItems: 'center' }}>
+            <EmptyState
+              icon="lock-open-outline"
+              title="Ton coffre est vide"
+              body="Analyse un message ou ajoute une preuve manuellement. Elle restera sur ton téléphone."
+              action={<Btn label="Ajouter une preuve" icon="add" onPress={() => setAddOpen(true)} />}
+            />
+          </BentoPanel>
         ) : (
           evidences.map((ev) => (
-            <Pressable
+            <BentoPanel
               key={ev.id}
               onPress={() => {
                 setSelected(ev);
                 setNotes(ev.notes ?? '');
               }}
-              accessibilityRole="button"
               accessibilityLabel={`Ouvrir la preuve ${ev.title}`}
-              style={({ pressed }) => ({ opacity: pressed ? 0.8 : 1 })}
+              contentStyle={{ gap: 10 }}
             >
-              <Card style={{ gap: 10 }}>
                 <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
                   <Badge
                     label={SEVERITIES.find((s) => s.key === ev.severity)?.label ?? ev.severity}
@@ -243,8 +251,7 @@ export default function VaultScreen() {
                     </AppText>
                   ) : null}
                 </View>
-              </Card>
-            </Pressable>
+            </BentoPanel>
           ))
         )}
 
@@ -256,7 +263,7 @@ export default function VaultScreen() {
             onPress={() => shareText('Dossier SEYLI', buildDossier(state.evidences))}
           />
         ) : null}
-      </Screen>
+      </BentoScreen>
 
       <Sheet visible={addOpen} onClose={() => setAddOpen(false)} title="Nouvelle preuve">
         <Field label="TITRE" value={title} onChangeText={setTitle} maxLength={120} placeholder="Ex. Insultes répétées sur TikTok" />

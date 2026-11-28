@@ -18,7 +18,7 @@ export default function AuthScreen() {
   };
 
   const features = [
-    { icon: 'sparkles-outline' as const, title: 'Analyse IA', body: 'Détecte le harcèlement dans un message ou une capture.' },
+    { icon: 'sparkles-outline' as const, title: 'Analyse de message', body: 'Détecte le harcèlement dans un message ou une capture.' },
     { icon: 'lock-closed-outline' as const, title: 'Coffre de preuves', body: 'Archive et exporte un dossier solide, sans cloud.' },
     { icon: 'people-outline' as const, title: 'Cercle de confiance', body: 'SOS en 1 clic vers tes proches et le 3018.' },
   ];
@@ -104,7 +104,7 @@ export default function AuthScreen() {
 
           <View style={{ flexDirection: 'row', gap: 8, marginTop: 6 }}>
             {[
-              { icon: 'phone-portrait-outline' as const, label: '100 % local' },
+              { icon: 'phone-portrait-outline' as const, label: 'Données locales' },
               { icon: 'eye-off-outline' as const, label: 'Sans compte' },
               { icon: 'time-outline' as const, label: '24h/24' },
             ].map((pill) => (

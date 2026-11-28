@@ -1,24 +1,15 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { useEffect, useRef, useState } from 'react';
-import {
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  TextInput,
-  View,
-  type ScrollViewInstance,
-} from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'react-native';
 import { EMERGENCY_NUMBERS, SUPPORT_CENTERS } from '../data/static';
-import { dial, sendSmsOrCompose } from '../lib/emergency';
-import { coachReply, geminiEnabled } from '../lib/gemini';
+import { dial, triggerSos } from '../lib/emergency';
+import { coachReply } from '../lib/gemini';
 import { useNav } from '../navigation';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../store';
-import { radius, space, type } from '../theme';
-import { AppText, Badge, Btn, Card, Chip, Field, IconTile, Note, Screen, SectionTitle } from '../ui/kit';
+import { radius, space } from '../theme';
+import { AppText, Badge, BentoScreen, BentoPanel, BentoGrid, BentoRow, BentoColumn, BentoTile, BentoAction, BentoCanvas, BentoChip, BentoBtn } from '../ui/bento';
 import { COACH_MODES, CoachMessage, CoachMode } from '../types';
 
 const QUICK_PROMPTS = [
@@ -71,9 +62,10 @@ function localReply(message: string): string {
 export default function CoachScreen() {
   const { palette, state, addContact, deleteContact } = useApp();
   const nav = useNav();
+  const aiReady = state.geminiKey.trim().length > 0;
   const insets = useSafeAreaInsets();
   const tabClearance = Math.max(12, insets.bottom + 6) + 91;
-  const [subTab, setSubTab] = useState<'coach' | 'help' | 'circle'>('coach');
+  const [subTab, setSubTab] = useState<'coach' | 'help' | 'quick'>('quick');
   const [mode, setMode] = useState<CoachMode>('FAST');
   const [messages, setMessages] = useState<CoachMessage[]>([
     {
@@ -84,7 +76,7 @@ export default function CoachScreen() {
   ]);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
-  const scrollRef = useRef<ScrollViewInstance>(null);
+  const scrollRef = useRef<any>(null);
 
   const [contactName, setContactName] = useState('');
   const [contactRelation, setContactRelation] = useState('');
@@ -103,23 +95,16 @@ export default function CoachScreen() {
     setInput('');
     setSending(true);
     try {
-      const reply = geminiEnabled
-        ? await coachReply(
-            mode,
-            messages.map((m) => ({ fromUser: m.fromUser, text: m.text })),
-            content
-          )
+      const reply = aiReady
+        ? await coachReply(mode, messages.map((m) => ({ fromUser: m.fromUser, text: m.text })), content)
         : localReply(content);
       setMessages((prev) => [...prev, { id: `c_${Date.now()}`, fromUser: false, text: reply }]);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Le coach est indisponible.';
+      console.warn('[SEYLI coach] réponse en ligne indisponible :', message);
       setMessages((prev) => [
         ...prev,
-        {
-          id: `e_${Date.now()}`,
-          fromUser: false,
-          text: `Je n’ai pas pu joindre l’IA (${message}). Voici une réponse locale :\n\n${localReply(content)}`,
-        },
+        { id: `e_${Date.now()}`, fromUser: false, text: `Voici une réponse préparée sur ton téléphone :\n\n${localReply(content)}` },
       ]);
     } finally {
       setSending(false);
@@ -137,121 +122,92 @@ export default function CoachScreen() {
     setContactPhone('');
   };
 
+  useEffect(() => {
+    // Simple fade-in animation for new messages
+    const handler = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          // Trigger entrance animation
+        }
+      },
+      { threshold: 0.1 }
+    );
+    return () => handler.disconnect();
+  }, []);
+
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <View style={{ flex: 1, backgroundColor: palette.background }}>
-        <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: space.xl, paddingBottom: 12 }}>
-          <Chip label="Coach IA" active={subTab === 'coach'} onPress={() => setSubTab('coach')} icon="sparkles-outline" />
-          <Chip label="Aide" active={subTab === 'help'} onPress={() => setSubTab('help')} icon="call-outline" />
-          <Chip label="Cercle" active={subTab === 'circle'} onPress={() => setSubTab('circle')} icon="people-outline" />
-        </View>
+      <BentoCanvas>
+        <BentoRow style={{ gap: 8, paddingHorizontal: space.xl, paddingBottom: 12 }}>
+          <BentoChip label="Coach IA" active={subTab === 'coach'} onPress={() => setSubTab('coach')} icon="sparkles-outline" />
+          <BentoChip label="Aide" active={subTab === 'help'} onPress={() => setSubTab('help')} icon="call-outline" />
+          <BentoChip label="Rapide" active={subTab === 'quick'} onPress={() => setSubTab('quick')} icon="flash" />
+        </BentoRow>
 
         {subTab === 'coach' ? (
           <View style={{ flex: 1 }}>
-            <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: space.xl, paddingBottom: 12 }}>
+            <BentoRow style={{ gap: 8, paddingHorizontal: space.xl, paddingBottom: 12 }}>
               {COACH_MODES.map((m) => (
-                <Chip key={m.key} label={m.label} active={mode === m.key} onPress={() => setMode(m.key)} />
+                <BentoChip key={m.key} label={m.label} active={mode === m.key} onPress={() => setMode(m.key)} />
               ))}
-            </View>
+            </BentoRow>
+
             <ScrollView
               ref={scrollRef}
               style={{ flex: 1 }}
-              contentContainerStyle={{ padding: space.xl, paddingTop: 4, gap: 12, paddingBottom: tabClearance }}
+              contentContainerStyle={{ padding: space.xl, paddingTop: 4, gap: 12, paddingBottom: 12 }}
               keyboardShouldPersistTaps="handled"
             >
               {messages.map((message) =>
                 message.fromUser ? (
-                  <LinearGradient
-                    key={message.id}
-                    colors={[palette.primary, palette.primaryDeep]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
+                  <BentoTile
                     style={{
                       alignSelf: 'flex-end',
                       maxWidth: '88%',
-                      paddingHorizontal: 16,
-                      paddingVertical: 12,
+                      backgroundColor: palette.primary,
                       borderRadius: radius.lg,
                       borderBottomRightRadius: radius.sm,
-                      shadowColor: palette.primaryDeep,
-                      shadowOpacity: 0.26,
-                      shadowRadius: 14,
-                      shadowOffset: { width: 0, height: 6 },
-                      elevation: 3,
+                      padding: 16,
+                      paddingVertical: 12,
                     }}
                   >
-                    <AppText variant="body" color={palette.onPrimary}>
-                      {message.text}
-                    </AppText>
-                  </LinearGradient>
+                    <AppText variant="body" color={palette.onPrimary}>{message.text}</AppText>
+                  </BentoTile>
                 ) : (
-                  <View
-                    key={message.id}
-                    style={{
-                      alignSelf: 'flex-start',
-                      maxWidth: '88%',
-                      paddingHorizontal: 16,
-                      paddingVertical: 12,
-                      borderRadius: radius.lg,
-                      borderBottomLeftRadius: radius.sm,
-                      backgroundColor: palette.surface,
-                      borderWidth: 1,
-                      borderColor: palette.hairline,
-                      shadowColor: palette.glow,
-                      shadowOpacity: palette.isDark ? 0.35 : 0.05,
-                      shadowRadius: 16,
-                      shadowOffset: { width: 0, height: 8 },
-                      elevation: 2,
-                    }}
+                  <BentoTile
+                    style={{ alignSelf: 'flex-start', maxWidth: '88%', borderBottomLeftRadius: radius.sm }}
+                    contentStyle={{ paddingHorizontal: 16, paddingVertical: 12 }}
                   >
                     <AppText variant="body">{message.text}</AppText>
-                  </View>
+                  </BentoTile>
                 )
               )}
               {sending ? (
-                <View
-                  style={{
-                    alignSelf: 'flex-start',
-                    paddingHorizontal: 16,
-                    paddingVertical: 12,
-                    borderRadius: radius.lg,
-                    borderBottomLeftRadius: radius.sm,
-                    backgroundColor: palette.surfaceAlt,
-                    borderWidth: 1,
-                    borderColor: palette.hairline,
-                  }}
-                >
-                  <AppText variant="caption" color={palette.muted}>
-                    Coach SEYLI écrit…
-                  </AppText>
-                </View>
+                <BentoTile style={{ alignSelf: 'flex-start', borderBottomLeftRadius: radius.sm }} contentStyle={{ paddingHorizontal: 16, paddingVertical: 12 }}>
+                  <AppText variant="caption" color={palette.muted}>Coach SEYLI écrit…</AppText>
+                </BentoTile>
               ) : null}
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 }}>
                 {QUICK_PROMPTS.map((prompt) => (
-                  <Pressable
+                  <BentoTile
                     key={prompt}
                     onPress={() => send(prompt)}
-                    style={({ pressed }) => ({
-                      paddingHorizontal: 14,
-                      paddingVertical: 10,
-                      borderRadius: radius.pill,
-                      backgroundColor: palette.surface,
-                      borderWidth: 1,
-                      borderColor: palette.hairline,
-                      opacity: pressed ? 0.8 : 1,
-                      transform: [{ scale: pressed ? 0.98 : 1 }],
-                    })}
+                    accessibilityLabel={prompt}
+                    style={{ borderRadius: radius.pill }}
+                    contentStyle={{ paddingHorizontal: 14, paddingVertical: 10 }}
                   >
-                    <AppText variant="caption" color={palette.muted}>
-                      {prompt}
-                    </AppText>
-                  </Pressable>
+                    <AppText variant="caption" color={palette.muted}>{prompt}</AppText>
+                  </BentoTile>
                 ))}
               </View>
-              {!geminiEnabled ? (
-                <Note icon="sparkles-outline">
-                  Mode local : ajoute une clé Gemini dans `.env` pour des réponses IA.
-                </Note>
+              {!aiReady ? (
+                <View>
+                  <AppText variant="caption" color={palette.muted} style={{ margin: 16 }}>
+                    Mode local : les réponses sont préparées sur ton téléphone, sans connexion.
+                    Connecte ta clé Gemini pour discuter avec le Coach en ligne.
+                  </AppText>
+                  <BentoAction icon="key-outline" label="Connecter ma clé API" onPress={() => nav.navigate('apikey')} />
+                </View>
               ) : null}
             </ScrollView>
 
@@ -265,57 +221,13 @@ export default function CoachScreen() {
                 paddingBottom: tabClearance,
                 borderTopWidth: 1,
                 borderTopColor: palette.hairline,
-                backgroundColor: palette.background,
+                backgroundColor: 'transparent',
               }}
             >
-              <TextInput
-                value={input}
-                onChangeText={setInput}
-                placeholder="Écris à Coach SEYLI…"
-                placeholderTextColor={palette.muted}
-                multiline
-                maxLength={1200}
-                style={[
-                  type.body,
-                  {
-                    flex: 1,
-                    maxHeight: 112,
-                    minHeight: 50,
-                    color: palette.text,
-                    backgroundColor: palette.surface,
-                    borderRadius: radius.lg,
-                    borderWidth: 1,
-                    borderColor: palette.hairline,
-                    paddingHorizontal: 16,
-                    paddingVertical: 12,
-                  },
-                ]}
-              />
-              <Pressable
-                onPress={() => send()}
-                disabled={!input.trim() || sending}
-                accessibilityRole="button"
-                accessibilityLabel="Envoyer le message"
-                style={({ pressed }) => ({
-                  width: 50,
-                  height: 50,
-                  borderRadius: 25,
-                  overflow: 'hidden',
-                  opacity: !input.trim() ? 0.5 : pressed ? 0.85 : 1,
-                  transform: [{ scale: pressed ? 0.96 : 1 }],
-                  shadowColor: palette.primaryDeep,
-                  shadowOpacity: input.trim() ? 0.3 : 0,
-                  shadowRadius: 12,
-                  shadowOffset: { width: 0, height: 6 },
-                  elevation: input.trim() ? 4 : 0,
-                })}
-              >
+              <AppText variant="body" color={palette.text}>Écris à Coach SEYLI…</AppText>
+              <Pressable onPress={() => send()} disabled={!input.trim() || sending} accessibilityRole="button" accessibilityLabel="Envoyer le message" style={{ width: 50, height: 50, borderRadius: 25, opacity: !input.trim() ? 0.5 : 1, transform: [{ scale: !input.trim() ? 0.96 : 1 }], shadowColor: palette.primaryDeep, shadowOpacity: input.trim() ? 0.3 : 0, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: input.trim() ? 4 : 0 }}>
                 <LinearGradient
-                  colors={
-                    input.trim()
-                      ? [palette.primary, palette.primaryDeep]
-                      : [palette.surfaceAlt, palette.surfaceAlt]
-                  }
+                  colors={input.trim() ? [palette.primary, palette.primaryDeep] : [palette.surfaceAlt, palette.surfaceAlt]}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                   style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
@@ -326,138 +238,57 @@ export default function CoachScreen() {
             </View>
           </View>
         ) : subTab === 'help' ? (
-          <Screen>
-            <Card style={{ gap: 10 }}>
-              <SectionTitle title="Numéros d’urgence" subtitle="Gratuits et confidentiels au Togo." />
-              {EMERGENCY_NUMBERS.map((n) => (
-                <Pressable
-                  key={n.number}
-                  onPress={() => dial(n.number)}
-                  style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 7 }}
-                >
-                  <IconTile name="call" size={38} tone="error" />
-                  <View style={{ flex: 1 }}>
-                    <AppText variant="label">
-                      {n.label} · {n.number}
-                    </AppText>
-                    <AppText variant="caption" color={palette.muted}>
-                      {n.description}
-                    </AppText>
-                  </View>
-                  <Ionicons name="chevron-forward" size={16} color={palette.muted} />
-                </Pressable>
-              ))}
-            </Card>
-
-            <Card style={{ gap: 10 }}>
-              <SectionTitle title="Structures d’aide" subtitle="Orientation locale" />
-              {SUPPORT_CENTERS.slice(0, 4).map((center) => (
-                <View key={center.id} style={{ gap: 2 }}>
-                  <AppText variant="label">{center.name}</AppText>
-                  <AppText variant="caption" color={palette.muted}>
-                    {center.description}
-                  </AppText>
-                </View>
-              ))}
-              <Btn label="Voir tous les lieux" variant="secondary" icon="location-outline" onPress={() => nav.goTab('map')} />
-            </Card>
-
-            <Btn label="Ouvrir le guide d’action" icon="compass-outline" onPress={() => nav.navigate('guide')} />
-          </Screen>
-        ) : (
-          <Screen>
-            <Card style={{ gap: 12 }}>
-              <SectionTitle
-                title="Cercle de confiance"
-                subtitle="Ces proches reçoivent ton SOS avec ta position."
-              />
-              {state.contacts.length === 0 ? (
-                <AppText variant="caption" color={palette.muted}>
-                  Ajoute au moins un proche pour activer le SOS 1 clic.
-                </AppText>
-              ) : (
-                state.contacts.map((contact) => (
-                  <View key={contact.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                    <View
-                      style={{
-                        width: 38,
-                        height: 38,
-                        borderRadius: 19,
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        backgroundColor: palette.primaryContainer,
-                      }}
-                    >
-                      <AppText variant="label" color={palette.primary}>
-                        {contact.name.slice(0, 1).toUpperCase()}
-                      </AppText>
-                    </View>
+          <View>
+            <BentoScreen>
+              <BentoPanel style={{ gap: 10 }}>
+                <AppText variant="h3">Numéros d'urgence</AppText>
+                {EMERGENCY_NUMBERS.map((n) => (
+                  <Pressable key={n.number} onPress={() => dial(n.number)} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 7 }}>
+                    <Ionicons name="call" size={38} tone="error" />
                     <View style={{ flex: 1 }}>
-                      <AppText variant="label">{contact.name}</AppText>
-                      <AppText variant="caption" color={palette.muted}>
-                        {contact.relation} · {contact.phone}
-                      </AppText>
+                      <AppText variant="label">{n.label} · {n.number}</AppText>
+                      <AppText variant="caption" color={palette.muted}>{n.description}</AppText>
                     </View>
-                    <Pressable
-                      onPress={() => {
-                            void sendSmsOrCompose(
-                              [contact.phone],
-                              'SEYLI — message test de mon cercle de confiance.'
-                            );
-                          }}
-                      hitSlop={8}
-                      accessibilityLabel={`Envoyer un SMS à ${contact.name}`}
-                    >
-                      <Ionicons name="chatbubble-ellipses-outline" size={19} color={palette.primary} />
-                    </Pressable>
-                    <Pressable
-                      onPress={() =>
-                        Alert.alert('Retirer ce contact ?', contact.name, [
-                          { text: 'Annuler', style: 'cancel' },
-                          { text: 'Retirer', style: 'destructive', onPress: () => deleteContact(contact.id) },
-                        ])
-                      }
-                      hitSlop={8}
-                      accessibilityLabel={`Supprimer ${contact.name}`}
-                    >
-                      <Ionicons name="trash-outline" size={18} color={palette.muted} />
-                    </Pressable>
+                    <Ionicons name="chevron-forward" size={16} color={palette.muted} />
+                  </Pressable>
+                ))}
+              </BentoPanel>
+
+              <BentoPanel style={{ gap: 10 }}>
+                <AppText variant="h3">Structures d'aide</AppText>
+                {SUPPORT_CENTERS.slice(0, 4).map((center) => (
+                  <View key={center.id} style={{ gap: 2 }}>
+                    <AppText variant="label">{center.name}</AppText>
+                    <AppText variant="caption" color={palette.muted}>{center.description}</AppText>
                   </View>
-                ))
-              )}
-            </Card>
+                ))}
+                <BentoBtn label="Voir tous les lieux" variant="secondary" icon="location-outline" onPress={() => nav.goTab('map')} />
+              </BentoPanel>
 
-            <Card style={{ gap: 10 }}>
-              <SectionTitle title="Ajouter un proche" />
-              <Field label="NOM" value={contactName} onChangeText={setContactName} maxLength={80} placeholder="Ex. Maman" />
-              <Field
-                label="RELATION"
-                value={contactRelation}
-                onChangeText={setContactRelation}
-                maxLength={50}
-                placeholder="Parent, ami(e), enseignant…"
-              />
-              <Field
-                label="TÉLÉPHONE"
-                value={contactPhone}
-                onChangeText={setContactPhone}
-                keyboardType="phone-pad"
-                maxLength={30}
-                placeholder="+228…"
-              />
-              <Btn label="Ajouter au cercle" icon="person-add-outline" onPress={addNewContact} />
-            </Card>
-
-            <Card tone="alt" style={{ gap: 6 }}>
-              <Badge label="SOS vérifié" color={palette.severity.LOW} />
-              <AppText variant="caption" color={palette.muted}>
-                Le SOS 1 clic ouvre ton application SMS avec un message prêt et ta position, puis compose le 3018.
-                Dans Expo Go, l’envoi reste manuel (aucune interception SMS native).
-              </AppText>
-            </Card>
-          </Screen>
-        )}
-      </View>
+              <BentoBtn label="Ouvrir le guide d'action" icon="compass-outline" onPress={() => nav.navigate('guide')} />
+            </BentoScreen>
+          </View>
+        ) : subTab === 'quick' ? (
+          <BentoGrid gap={12}>
+            {['signalement', 'urgence', 'conseils', 'contacts'].map((category, i) => (
+              <BentoRow key={category}>
+                <BentoTile
+                  style={{ borderRadius: radius.lg, overflow: 'hidden', backgroundColor: palette.isDark ? 'rgba(31,24,38,0.8)' : 'rgba(255,255,255,0.7)' }}
+                  onPress={() => Alert.alert(`Category: ${category}`)}
+                >
+                  <View style={{ padding: 20, gap: 12 }}>
+                    <Ionicons name={category === 'signalement' ? 'flag-outline' : category === 'urgence' ? 'alert-circle' : category === 'conseils' ? 'information-circle-outline' : 'people-outline'} size={24} color={palette.primary} />
+                    <AppText variant="h3" style={{ fontSize: 18 }}>{category.charAt(0).toUpperCase() + category.slice(1)}</AppText>
+                    <AppText variant="bodySm" color={palette.muted}>
+                      Actions rapides pour {category}
+                    </AppText>
+                  </View>
+                </BentoTile>
+              </BentoRow>
+            ))}
+          </BentoGrid>
+        ) : null}
+      </BentoCanvas>
     </KeyboardAvoidingView>
   );
 }

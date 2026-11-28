@@ -415,13 +415,17 @@ export function Screen({
   scroll = true,
   contentStyle,
   bottomInset = 118,
+  transparent = false,
 }: {
   children: React.ReactNode;
   scroll?: boolean;
   contentStyle?: StyleProp<ViewStyle>;
   bottomInset?: number;
+  /** Let the page backdrop show through, for screens already inside a BentoCanvas. */
+  transparent?: boolean;
 }) {
   const { palette } = useApp();
+  const background = transparent ? 'transparent' : palette.background;
   const { isRoot } = useNav();
   const insets = useSafeAreaInsets();
   const content = (
@@ -440,11 +444,11 @@ export function Screen({
     </View>
   );
   if (!scroll) {
-    return <View style={{ flex: 1, backgroundColor: palette.background }}>{content}</View>;
+    return <View style={{ flex: 1, backgroundColor: background }}>{content}</View>;
   }
   return (
     <ScrollView
-      style={{ flex: 1, backgroundColor: palette.background }}
+      style={{ flex: 1, backgroundColor: background }}
       contentContainerStyle={{ flexGrow: 1 }}
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}

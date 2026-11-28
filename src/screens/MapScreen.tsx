@@ -6,7 +6,8 @@ import { dial, openInMaps } from '../lib/emergency';
 import { useNav } from '../navigation';
 import { useApp } from '../store';
 import { radius } from '../theme';
-import { AppText, Badge, Btn, Card, Chip, Field, IconTile, Note, Screen, SectionTitle } from '../ui/kit';
+import { AppText, Badge, Btn, Chip, Field, IconTile, Note, SectionTitle } from '../ui/kit';
+import { BentoPanel, BentoScreen } from '../ui/bento';
 
 export default function MapScreen() {
   const { palette, state, addPlace, deletePlace } = useApp();
@@ -35,8 +36,8 @@ export default function MapScreen() {
   const isSaved = (id: string) => state.places.some((p) => p.id === id);
 
   return (
-    <Screen>
-      <Card style={{ gap: 12 }}>
+    <BentoScreen>
+      <BentoPanel contentStyle={{ gap: 12 }}>
         <SectionTitle
           title="Lieux & ressources"
           subtitle="Structures d’aide gratuités au Togo, à portée de main."
@@ -52,12 +53,12 @@ export default function MapScreen() {
           ))}
         </View>
         <Note>
-          Vue liste optimisée Expo Go. Chaque lieu s’ouvre dans Google Maps pour l’itinéraire.
+          Chaque lieu s’ouvre dans Google Maps pour l’itinéraire.
         </Note>
-      </Card>
+      </BentoPanel>
 
       {centers.map((center) => (
-        <Card key={center.id} style={{ gap: 12 }}>
+        <BentoPanel key={center.id} contentStyle={{ gap: 12 }}>
           <View style={{ flexDirection: 'row', gap: 12, alignItems: 'flex-start' }}>
             <IconTile name="location" size={44} />
             <View style={{ flex: 1, gap: 3 }}>
@@ -119,18 +120,18 @@ export default function MapScreen() {
               />
             </Pressable>
           </View>
-        </Card>
+        </BentoPanel>
       ))}
 
       {centers.length === 0 ? (
-        <Card tone="alt">
+        <BentoPanel tone="soft">
           <AppText variant="bodySm" color={palette.muted}>
             Aucun lieu ne correspond à cette recherche. Essaie « Lomé », « écoute » ou « signalement ».
           </AppText>
-        </Card>
+        </BentoPanel>
       ) : null}
 
-      <Card style={{ gap: 10 }}>
+      <BentoPanel contentStyle={{ gap: 10 }}>
         <SectionTitle title="Mes lieux enregistrés" subtitle="Accessibles même hors ligne." />
         {state.places.length === 0 ? (
           <AppText variant="caption" color={palette.muted}>
@@ -170,9 +171,9 @@ export default function MapScreen() {
             </View>
           ))
         )}
-      </Card>
+      </BentoPanel>
 
-      <Card tone="alt" style={{ gap: 8 }}>
+      <BentoPanel tone="soft" contentStyle={{ gap: 8 }}>
         <AppText variant="label">Besoin d’une orientation personnalisée ?</AppText>
         <AppText variant="caption" color={palette.muted}>
           Le Coach SEYLI peut t’aider à choisir la bonne structure et préparer ce que tu vas dire.
@@ -184,7 +185,7 @@ export default function MapScreen() {
           onPress={() => nav.goTab('coach')}
           compact
         />
-      </Card>
-    </Screen>
+      </BentoPanel>
+    </BentoScreen>
   );
 }
